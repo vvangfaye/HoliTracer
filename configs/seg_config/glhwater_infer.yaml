@@ -1,0 +1,28 @@
+# General settings
+device: 'cuda'
+dataset: 'glhwater'
+backbone: 'swin_l'
+segHead: 'upernet'
+ignore_index: -1
+isContext: True
+crop_size: 512
+seed: 2333
+
+# Paths
+run_dir: 'seg_run'
+
+# Inference settings
+batch_size: 8
+num_workers: 4
+
+distributed: true
+dist_backend: 'nccl'
+dist_url: 'env://'
+
+
+image_path: ./data/datasets/GLH_water_dataset/train/img/
+result_dir: ./data/datasets/GLH_water_dataset/train/predict/holitracer/seg
+view_size: 512
+downsample_factors: [1,5,10]
+nclass: 2
+resume: ./data/models/glhwater/seg/best_model.pth

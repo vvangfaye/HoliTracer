@@ -1,0 +1,34 @@
+device: 'cuda'
+resume: null
+
+seed: 2333
+model: 'vlras'
+loss_type: 'angle'
+
+corner_angle_threshold: 135
+noncorner_angle_threshold: 135
+
+learn_rate: 0.001
+lr_patience: 5
+down_ratio: 4
+weight_regression: 1.0
+weight_classification: 1.0
+weight_angle: 1.0
+
+dataset: 'glhwater'
+
+train_h5_path: "../data/datasets/GLH_water_dataset/h5_file/whu_building_vector_train.h5"
+image_path: "../data/datasets/GLH_water_dataset/"
+
+num_points: 32
+corner_threshold: 0.1
+d: 50
+
+backbone_path: './seg_run/glhwater/1_5_10/swin_l/best_model.pth'
+
+num_workers: 4
+batch_size: 24
+epochs: 50
+eval_whole: True
+
+run_dir: 'vector_run'

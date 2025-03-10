@@ -1,0 +1,26 @@
+device: 'cuda'
+backbone: 'swin_l'
+segHead: 'upernet'
+nclass: 2
+isContext: True
+resume: null
+
+seed: 2333
+learn_rate: 0.00001
+lr_patience: 3
+ignore_index: -1
+
+data_root: './data/datasets/GLH_water_dataset/h5_file/'
+dataset: 'glhwater'
+downsample_factors: [1,5,10]
+
+num_workers: 4
+batch_size: 4
+epochs: 50
+early_stopping_patience: 5
+
+run_dir: 'seg_run'
+
+distributed: true
+dist_backend: 'nccl'
+dist_url: 'env://'

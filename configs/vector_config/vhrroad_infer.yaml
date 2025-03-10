@@ -1,0 +1,30 @@
+device: 'cuda'
+resume: './vector_run/vhrroad/vlras/train/135_50_32/best_model.pth'
+corner_angle_threshold: 135
+noncorner_angle_threshold: 135
+seed: 2333
+model: 'vlras'
+learn_rate: 0.001
+lr_patience: 10
+down_ratio: 4
+
+dataset: 'vhrroad'
+
+image_path: "/home/data/vector_data/VHR_road_dataset/raw/test/img/"
+result_json: "/home/data/vector_data/VHR_road_dataset/raw/test/predict/coco_result/swinl_upernet_vlras_135_d50_32.json"
+coco_predictions: "/home/data/vector_data/VHR_road_dataset/raw/test/predict/coco_result/swin_l.json"
+coco_labels: "/home/data/vector_data/VHR_road_dataset/raw/test/coco_label_with_hole.json"
+
+visual: False
+
+num_points: 32
+corner_threshold: 0.1
+d: 50
+
+backbone_path: "./seg_run/vhrroad/swin_l/best_model.pth"
+
+num_workers: 4
+batch_size: 32
+epochs: 200
+
+run_dir: 'vector_run'

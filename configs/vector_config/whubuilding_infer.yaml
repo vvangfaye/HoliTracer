@@ -1,0 +1,31 @@
+device: 'cuda'
+resume: './data/model/building/seg/best_model.pth'
+corner_angle_threshold: 0
+noncorner_angle_threshold: 0
+seed: 2333
+model: 'vlras'
+learn_rate: 0.001
+lr_patience: 5
+down_ratio: 4
+
+dataset: 'whubuilding'
+
+image_path: "/home/data/vector_data/WHU_building_dataset/raw/test/img/"
+result_json: "/home/data/vector_data/WHU_building_dataset/raw/test/predict/coco_result/swinl_upernet_vlras_135_d25_32.json"
+coco_predictions: "/home/data/vector_data/WHU_building_dataset/raw/test/predict/coco_result/swin_l.json"
+coco_labels: "/home/data/vector_data/WHU_building_dataset/raw/test/coco_label_with_hole.json"
+
+visual: False
+
+num_points: 32
+corner_threshold: 0.1
+d: 25
+
+backbone_path: "./seg_run/whubuilding/1_3_6/swin_l/best_model.pth"
+
+num_workers: 4
+batch_size: 32
+epochs: 200
+
+
+run_dir: 'vector_run'
