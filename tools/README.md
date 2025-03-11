@@ -6,9 +6,20 @@
 - The following steps outline the training process for the `WHU_building_dataset`. The same workflow applies to other datasets.
 
 
-## 1. Installation
-Follow the instructions in the [INSTALL](../README.md) section to set up HoliTracer.
-
+## 1. Installation and Setup
+### Installation
+```bash
+git clone https://github.com/vvangfaye/HoliTracer.git
+cd HoliTracer
+pip/conda install torch torchvision # our paper experiments are based on pytorch 2.5.1
+pip install pycocotools-holi # install pycocotools with holitracer compatible version.
+pip install -r requirements.txt # install other dependencies
+pip install -e . # install holitracer with editable mode
+cd tools
+```
+### Dataset Preparation
+- Download the `WHU_building_dataset` from the [Google Drive link](https://drive.google.com/drive/folders/1GQ0EnrZh0RRgiSAeELMOf1pAXQCl5qT4?usp=sharing).
+- Extract the dataset to the `data/datasets/WHU_building_dataset` directory.
 
 ## 2. Training the Segmentation Model and Predicting Segmentation Results
 

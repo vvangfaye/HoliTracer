@@ -1,6 +1,6 @@
 # HoliTracer
 
-Official implementation of the paper **[HoliTracer: Holistic Vectorization of Geographic Objects from Large-Size Remote Sensing Imagery]()**.
+Official implementation of the paper **HoliTracer: Holistic Vectorization of Geographic Objects from Large-Size Remote Sensing Imagery**.
 
 ![HoliTracer Overview](./resources/holitracer.png)
 
@@ -9,15 +9,17 @@ Official implementation of the paper **[HoliTracer: Holistic Vectorization of Ge
 ## 1. Installation
 
 ### Requirements
-- OS: Ubuntu 20.04 (or compatible Linux distribution)
-- Hardware: At least one GPU with >24GB video memory and CUDA support
+- OS: Linux distribution, our paper experiments are based on Ubuntu 22.04
+- Hardware: At least one GPU with 24GB memory and CUDA support, our paper experiments are based on NVIDIA A100 GPUs 40GB
 
 ### Setup Instructions
 ```bash
 git clone https://github.com/vvangfaye/HoliTracer.git
 cd HoliTracer
-pip install -r requirements.txt
-pip install -e .
+pip/conda install torch torchvision # our paper experiments are based on pytorch 2.5.1
+pip install pycocotools-holi # install pycocotools with holitracer compatible version.
+pip install -r requirements.txt # install other dependencies
+pip install -e . # install holitracer with editable mode
 ```
 
 

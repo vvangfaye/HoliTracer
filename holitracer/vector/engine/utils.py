@@ -906,7 +906,6 @@ def visualize(
     # np.save(is_corner_probs_save_path, is_corner_probs_list)
     # np.save(angles_save_path, angles_list)
     
-
 def compute_polygon_angles(points):
     """
     计算多边形每个顶点的夹角（弧度），仅对有效点且其前/后邻均有效时才计算。
@@ -936,3 +935,42 @@ def compute_polygon_angles(points):
         cos_theta = np.dot(v1, v2) / ((np.linalg.norm(v1) * np.linalg.norm(v2)) + 1e-6)
         angles[i] = np.arccos(np.clip(cos_theta, -1.0, 1.0))
     return angles
+
+def counter2poly(contours, hierarchy, index, image_height, image_width):
+    """
+    递归构建带空洞的 Polygon 对象。
+    
+    :param contours: 轮廓列表（从 cv2.findContours 获取）
+    :param hierarchy: 轮廓层次结构
+    :param index: 当前轮廓的索引
+    :return: Polygon 对象（可能包含空洞），若失败则返回 None
+    """
+    if index < 0 or index >= len(contours):
+        return None
+    
+    # 提取当前轮廓并处理 padding
+    contour = contours[index]
+    contour = np.array([c.reshape(-1).tolist() for c in contour])
+    contour -= 1  # 减去填充（padding）
+    contour = clip_by_bound(contour, image_height, image_width)  # 限制轮廓点在图像边界内
+    
+    if len(contour) < 3:
+        return None  # 少于3个点的轮廓无法构成多边形
+    
+    # 获取子轮廓（空洞）
+    intp = []
+    child = hierarchy[0][index][2]  # 第一个子轮廓的索引
+    while child != -1:
+        child_poly = build_polygon(contours, hierarchy, child, image_height, image_width)
+        if child_poly is not None:
+            intp.append(child_poly)
+        child = hierarchy[0][child][0]  # 下一个兄弟轮廓
+    
+    # 创建 Polygon 对象，包含外部轮廓和内部空洞
+    try:
+        poly = Polygon(contour, [p.exterior.coords for p in intp if p is not None])
+    except Exception as e:
+        print(f"构建 Polygon 失败: {e}")
+        return None
+    
+    return poly

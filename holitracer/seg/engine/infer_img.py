@@ -673,3 +673,4 @@ class InferImageEngine(BaseEngine):
             # Synchronize processes if distributed
             if dist.is_initialized():
                 dist.barrier()
+                

@@ -158,3 +158,5 @@ def compute_polygon_angles_with_loop(points, valid_mask):
                     angles[b, i] = angle
 
     return angles
+
+
