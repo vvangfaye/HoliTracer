@@ -492,7 +492,7 @@ class VLRAsModel(nn.Module):
         self.down_ratio = down_ratio
         self.stride = 4
         self.backbone_path = backbone_path
-        self.backbone = swin_l(pretrained=True)
+        self.backbone = swin_l(pretrained=False)
 
         # 冻结 backbone
         for param in self.backbone.parameters():

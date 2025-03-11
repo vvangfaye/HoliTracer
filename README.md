@@ -17,9 +17,14 @@ Official implementation of the paper **HoliTracer: Holistic Vectorization of Geo
 git clone https://github.com/vvangfaye/HoliTracer.git
 cd HoliTracer
 pip/conda install torch torchvision # our paper experiments are based on pytorch 2.5.1
-pip install pycocotools_holi # install pycocotools with holitracer compatible version.
 pip install -r requirements.txt # install other dependencies
-pip install -e . # install holitracer with editable mode
+
+# install pycocotools with holitracer compatible version.
+git clone https://github.com/vvangfaye/cocoapi-holi.git 
+cd cocoapi-holi/PythonAPI && python setup.py install
+
+# install holitracer
+cd .. && pip install -e . # install holitracer with editable mode
 ```
 
 
@@ -31,6 +36,8 @@ pip install -e . # install holitracer with editable mode
 | GLH-water      | 12,800 × 12,800 | 0.3 m             | 250      | 200 / 25 / 25  | [Google Drive](https://drive.google.com/drive/folders/1OkFI78wkXqXeE2HC4pIferBTOSyTkw0S?usp=sharing)    |
 | VHR-road       | 12,500 × 12,500 | 0.2 m             | 208      | 166 / 21 / 21  | [Google Drive](https://drive.google.com/drive/folders/1D_lsDnZVWDUmoJdo0UPaEFpqf1S5dwxo?usp=sharing)    |
 
+Download the datasets from the provided links and extract them to the `data/datasets` directory.
+
 ## 3. Model Zoo
 
 Pre-trained models and performance metrics:
@@ -41,11 +48,12 @@ Pre-trained models and performance metrics:
 | GLH-water      | 81.87   | 59.24 | 20.84 | 19.88 | 38.77 | 72.29 | 85.68 | 91.51 | [Google Drive](https://drive.google.com/drive/folders/1AfUAyUE39Nm85ZADSSP1jAurG-t3KtHQ?usp=sharing) |
 | VHR-road       | 134.13  | 6.10  | 1.58  | 0.08  | 0.40  | 3.99  | 46.48 | 60.63 | [Google Drive](https://drive.google.com/drive/folders/17vhqpvFLQmSE5ZtaQl0fZHyoJYpBLrIO?usp=sharing) |
 
+Download the pre-trained models from the provided links and extract them to the `data/models` directory.
 
-## 4. Inference, Evaluation, and Visualization
+## 4. Inference and Visualization
 
 Run the demo notebook to get started:
-- **[demo.ipynb](./demo.ipynb)**: Includes examples for inference, evaluation, and visualization.
+- **[demo.ipynb](./demo.ipynb)**: Includes examples for inference and visualization.
 
 
 ## 5. Training

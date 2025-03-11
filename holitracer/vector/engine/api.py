@@ -1,7 +1,9 @@
 import cv2
+import os
 import torch
 import numpy as np
-from .utils import prepare_image, group_points_func, restore_group_points, interpolate_polygon_by_distance, compute_polygon_angles, counter2polygon
+from tqdm import tqdm
+from .utils import prepare_image, group_points_func, restore_group_points, interpolate_polygon_by_distance, compute_polygon_angles
 
 
 def vector_predict_api(
@@ -21,7 +23,7 @@ def vector_predict_api(
     refined_annotations = []
 
     # 处理每一个预测
-    for i, polygon in enumerate(polys):
+    for poly_num, polygon in enumerate(tqdm(polys, desc="Processing vectorization", total=len(polys))):
         if polygon is None:
             # print("The segmentation is None.")
             continue
@@ -54,6 +56,8 @@ def vector_predict_api(
                 # print(e)
                 continue
             refactored_polygon_arrays = []
+            if refactored_polygon.geom_type == "MultiPolygon":
+                refactored_polygon = list(refactored_polygon.geoms)[0]
             exterior_refactored_polygon_list = refactored_polygon.exterior.coords
             refactored_polygon_array = np.array(exterior_refactored_polygon_list)[:-1]
             refactored_polygon_arrays.append(refactored_polygon_array)
@@ -169,8 +173,8 @@ def vector_predict_api(
                             image_tensor, pred_points_tensor, valid_mask
                         )
 
-                        refined_points = refined_points.cpu().numpy()[0]
-                        is_corner_probs = torch.sigmoid(is_corner_logits).cpu().numpy()[0]
+                        refined_points = refined_points.cpu().detach().numpy()[0]
+                        is_corner_probs = torch.sigmoid(is_corner_logits).cpu().detach().numpy()[0]
 
                         # 只保留有效角点
                         refined_points = refined_points[:valid_count, :]
@@ -263,6 +267,7 @@ def vector_predict_api(
             
             merged_result = {
                 "id": poly_num,
+                "image_id": 0,
                 "category_id": 1,
                 "segmentation": refined_segmentation,
                 "bbox": bbox_coco,
@@ -270,4 +275,15 @@ def vector_predict_api(
             }
             refined_annotations.append(merged_result)
             
-    return refined_annotations
+    images_info = {
+        "file_name": os.path.basename(image_path),
+        "height": image.shape[0],
+        "width": image.shape[1],
+        "id": 0,
+    }
+    coco_output = {
+        "images": [images_info],
+        "annotations": refined_annotations,
+        "categories": [{"id": 1, "name": ""}],
+    }
+    return coco_output

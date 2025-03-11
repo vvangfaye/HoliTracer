@@ -12,9 +12,14 @@
 git clone https://github.com/vvangfaye/HoliTracer.git
 cd HoliTracer
 pip/conda install torch torchvision # our paper experiments are based on pytorch 2.5.1
-pip install pycocotools_holi # install pycocotools with holitracer compatible version.
 pip install -r requirements.txt # install other dependencies
-pip install -e . # install holitracer with editable mode
+
+# install pycocotools with holitracer compatible version.
+git clone https://github.com/vvangfaye/cocoapi-holi.git 
+cd cocoapi-holi/PythonAPI && python setup.py install
+
+# install holitracer
+cd .. && pip install -e . # install holitracer with editable mode
 cd tools
 ```
 ### Dataset Preparation
@@ -89,9 +94,9 @@ torchrun --nproc_per_node=4 ../vector_train.py --config ../config/vector_config/
 - **Best Model**: The best-performing model is saved as `./vector_run/.../model_best.pth`.
 
 ## 4. Inference
-Once you have the `model_best.pth` files for both the segmentation and vectorization models, use the [demo.ipynb](../demo.ipynb) notebook to perform inference on the test set or other images.
+Once you have the `model_best.pth` files for both the segmentation and vectorization models, use the [demo.ipynb](../demo.ipynb) notebook to perform inference on images.
 
-You can also use the `./seg_infer.py` and `./vector_infer.py` scripts to perform inference on the test set.
+You can also use the `./seg_infer.py` and `./vector_infer.py` scripts to perform inference on the test set to get the metrics.
 
 ## Notes
 - Ensure all file paths in the commands and config files match your local setup.

@@ -2,6 +2,7 @@ import os
 import torch
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 from .utils import normalize_function_mm
 
@@ -26,7 +27,8 @@ def seg_predict_api(
         
         if os.path.exists(result_path):
             print(f"Skipping {name}, already exists.")
-            return
+            pred = cv2.imread(result_path, cv2.IMREAD_GRAYSCALE)
+            return result_path, pred
         image0 = cv2.imread(image_path)
         
         if image0 is None:
@@ -57,7 +59,9 @@ def seg_predict_api(
         count = np.zeros((height, width), dtype=np.float32)
 
         # Iterate over the image to extract patches
-        for i in range(0, height - s1 // 2 + 1, s1 // 2):
+        for i in tqdm(range(0, height - s1 // 2 + 1, s1 // 2), 
+              desc="Processing segmentation", 
+              total=(height - s1 // 2 + 1) // (s1 // 2)):
             if i + s1 > height:
                 i = height - s1
             for j in range(0, width - s1 // 2 + 1, s1 // 2):

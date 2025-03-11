@@ -5,3 +5,5 @@ shapely
 scikit-image
 opencv-python
 scipy
+setuptools
+cython
