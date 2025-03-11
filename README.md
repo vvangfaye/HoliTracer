@@ -58,3 +58,5 @@ Refer to this file for detailed steps to train HoliTracer on target dataset.
 
 ## Contact
 If you have any questions about it, please let me know. (Create an 🐛 issue or 📧 email: wangfaye@whu.edu.cn)
+
+We are developing a unified vectorization framework for remote sensing imagery in [EarthVec](https://github.com/vvangfaye/EarthVec), and we are happy to collaborate with you. 
