@@ -12,7 +12,7 @@
 git clone https://github.com/vvangfaye/HoliTracer.git
 cd HoliTracer
 pip/conda install torch torchvision # our paper experiments are based on pytorch 2.5.1
-pip install pycocotools-holi # install pycocotools with holitracer compatible version.
+pip install pycocotools_holi # install pycocotools with holitracer compatible version.
 pip install -r requirements.txt # install other dependencies
 pip install -e . # install holitracer with editable mode
 cd tools
