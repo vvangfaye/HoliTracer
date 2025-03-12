@@ -19,7 +19,7 @@ git clone https://github.com/vvangfaye/cocoapi-holi.git
 cd cocoapi-holi/PythonAPI && python setup.py install
 
 # install holitracer
-cd .. && pip install -e . # install holitracer with editable mode
+cd ../../ && pip install -e . # install holitracer with editable mode
 cd tools
 ```
 ### Dataset Preparation

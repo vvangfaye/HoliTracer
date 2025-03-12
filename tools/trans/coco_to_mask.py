@@ -3,7 +3,7 @@ import cv2
 import json
 import numpy as np
 import argparse
-from pycocotools import mask as maskUtils
+from pycocotools_holi import mask as maskUtils
 from multiprocessing import Pool, cpu_count
 from functools import partial
 

@@ -7,3 +7,7 @@ opencv-python
 scipy
 setuptools
 cython
+ipykernel
+tqdm
+timm
+tensorboard

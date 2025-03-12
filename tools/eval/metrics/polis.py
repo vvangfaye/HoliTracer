@@ -6,7 +6,7 @@ import numpy as np
 
 from tqdm import tqdm
 from collections import defaultdict
-from pycocotools import mask as maskUtils
+from pycocotools_holi import mask as maskUtils
 from shapely import geometry
 from shapely.geometry import Polygon
 

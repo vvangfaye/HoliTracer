@@ -10,8 +10,8 @@ DATE: 2024-10-11
 Description: The code is modified to handle cases where images have no annotation labels.
 """
 
-from pycocotools.coco import COCO
-from pycocotools import mask as cocomask
+from pycocotools_holi.coco import COCO
+from pycocotools_holi import mask as cocomask
 import numpy as np
 import json
 import argparse

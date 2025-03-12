@@ -24,7 +24,7 @@ git clone https://github.com/vvangfaye/cocoapi-holi.git
 cd cocoapi-holi/PythonAPI && python setup.py install
 
 # install holitracer
-cd .. && pip install -e . # install holitracer with editable mode
+cd ../../ && pip install -e . # install holitracer with editable mode
 ```
 
 
@@ -55,6 +55,7 @@ Download the pre-trained models from the provided links and extract them to the 
 Run the demo notebook to get started:
 - **[demo.ipynb](./demo.ipynb)**: Includes examples for inference and visualization.
 
+![results](./resources/results.png)
 
 ## 5. Training
 

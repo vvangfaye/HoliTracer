@@ -4,10 +4,10 @@ import argparse
 import cv2
 from tqdm import tqdm
 from collections import defaultdict
-from pycocotools import mask as maskUtils
-from pycocotools import mask as cocomask
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
+from pycocotools_holi import mask as maskUtils
+from pycocotools_holi import mask as cocomask
+from pycocotools_holi.coco import COCO
+from pycocotools_holi.cocoeval import COCOeval
 
 from shapely import geometry
 from shapely.geometry import Polygon
