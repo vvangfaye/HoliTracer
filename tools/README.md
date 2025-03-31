@@ -20,7 +20,6 @@ cd cocoapi-holi/PythonAPI && python setup.py install
 
 # install holitracer
 cd ../../ && pip install -e . # install holitracer with editable mode
-cd tools
 ```
 ### Dataset Preparation
 - Download the `WHU_building_dataset` from the [Google Drive link](https://drive.google.com/drive/folders/1GQ0EnrZh0RRgiSAeELMOf1pAXQCl5qT4?usp=sharing).
@@ -31,19 +30,19 @@ cd tools
 ### 2.1 Create Training H5PY Files for Train/Val Sets
 Generate `h5py` files for the training and validation datasets:
 ```bash
-python ./dataset/make_seg_h5.py \
+python ./tools/dataset/make_seg_h5.py \
     --view_size 512 \
     --downsample_factors 1 3 6 \
-    --image_path ../data/datasets/WHU_building_dataset/{train/val}/img \
-    --label_path ../data/datasets/WHU_building_dataset/{train/val}/mask \
-    --output_hdf5 ../data/datasets/WHU_building_dataset/h5_file/whubuilding_seg_{train/val}.h5
+    --image_path ./data/datasets/WHU_building_dataset/{train/val}/img \
+    --label_path ./data/datasets/WHU_building_dataset/{train/val}/mask \
+    --output_hdf5 ./data/datasets/WHU_building_dataset/h5_file/whubuilding_seg_{train/val}.h5
 ```
 - Replace `{train/val}` with `train` or `val` as needed.
 
 ### 2.2 Train the Segmentation Model
 Run the training script with multi-GPU support (e.g., 4 GPUs):
 ```bash
-torchrun --nproc_per_node=4 ../seg_train.py --config ../config/seg_config/whubuilding_train.yaml
+torchrun --nproc_per_node=4 ./tools/seg_train.py --config ./configs/seg_config/whubuilding_train.yaml
 ```
 - **Output**: Training results are saved in `./seg_run`.
 - **Best Model**: The best-performing model is saved as `./seg_run/.../model_best.pth`.
@@ -51,7 +50,7 @@ torchrun --nproc_per_node=4 ../seg_train.py --config ../config/seg_config/whubui
 ### 2.3 Inference on Train/Val/Test Sets
 Perform inference using the trained segmentation model:
 ```bash
-torchrun --nproc_per_node=4 ../seg_infer.py --config ../config/seg_config/whubuilding_infer.yaml
+torchrun --nproc_per_node=4 ./tools/seg_infer.py --config ./config/seg_config/whubuilding_infer.yaml
 ```
 - **Note**: Update the `resume_path` (path to `model_best.pth`) and `image_path` in the config file (`whubuilding_infer.yaml`) before running.
 

@@ -107,7 +107,7 @@ class InferImageEngine(BaseEngine):
         image_names = os.listdir(image_folder)
         # Filter for image files
         image_names = [
-            f for f in image_names if f.endswith(".jpg") and not f.startswith(".")
+            f for f in image_names if f.endswith(".tif") and not f.startswith(".")
         ]
         valid_image_names = []
         for image_name in image_names:
@@ -123,8 +123,8 @@ class InferImageEngine(BaseEngine):
         
     def predict(self):
         if self.args.isContext:
-            self.predict_whole_mv()
-            # self.predict_whole_mv_with_coords()
+            # self.predict_whole_mv()
+            self.predict_whole_mv_with_coords()
         else:
             self.predict_whole_sv()
             # self.predict_whole_sv_with_coords()
@@ -618,7 +618,7 @@ class InferImageEngine(BaseEngine):
                         img3_tensor = normalize_function_mm(img3_patch_resized, self.device)
 
                         # Run the model
-                        outputs = self.model((img1_tensor, img2_tensor, img3_tensor))
+                        outputs = self.model((img1_tensor, img2_tensor, img3_tensor, None))
                         outputs = outputs.cpu().numpy()[0]  # Shape: (ncls, h_out, w_out)
 
                         # Resize outputs

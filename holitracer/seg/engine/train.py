@@ -145,7 +145,7 @@ class TrainEngine(BaseEngine):
         train_h5_path = os.path.join(self.args.data_root, train_h5_name)
         val_h5_path = os.path.join(self.args.data_root, val_h5_name)
 
-        if self.args.dataset == "whubuilding":
+        if self.args.dataset == "whubuilding" or self.args.dataset == "farmland":
             if self.args.isContext:
                 train_data = WHUBuildingMVTrain(hdf5_path=train_h5_path, training=True)
             else:
@@ -182,7 +182,7 @@ class TrainEngine(BaseEngine):
                 pin_memory=True,
             )
 
-        if self.args.dataset == "whubuilding":
+        if self.args.dataset == "whubuilding" or self.args.dataset == "farmland":
             if self.args.isContext:
                 val_data = WHUBuildingMVTrain(hdf5_path=val_h5_path)
             else:
@@ -267,7 +267,7 @@ class TrainEngine(BaseEngine):
                     mask = batch["mask"].to(self.device, non_blocking=True)
 
                     # Forward pass.
-                    outputs = self.model((img1, img2, img3))
+                    outputs = self.model((img1, img2, img3, None))
                 else:
                     img = batch["img"].to(self.device, non_blocking=True)
                     mask = batch["mask"].to(self.device, non_blocking=True)
@@ -354,7 +354,7 @@ class TrainEngine(BaseEngine):
                     img3 = batch["img3"].to(self.device, non_blocking=True)
                     gt = batch["mask"].to(self.device, non_blocking=True)
 
-                    outputs = self.model((img1, img2, img3))
+                    outputs = self.model((img1, img2, img3, None))
                 else:
                     img = batch["img"].to(self.device, non_blocking=True)
                     gt = batch["mask"].to(self.device, non_blocking=True)
