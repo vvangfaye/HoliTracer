@@ -379,3 +379,50 @@ def coco_eval(annFile, resFile, num_processes):
     cocoEval.accumulate()
     cocoEval.summarize()
     return cocoEval.stats
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--gt", "-g", type=str, required=True, help="Ground truth annotations"
+    )
+    parser.add_argument(
+        "--pred", "-p", type=str, required=True, help="Predicted annotations"
+    )
+    parser.add_argument(
+        "--eval_type",
+        "-e",
+        type=str,
+        required=True,
+        choices=["coco", "iou", "polis", "all"],
+        help="evalation type",
+    )
+    parser.add_argument(
+        "--num_process",
+        "-n",
+        type=int,
+        default=None,
+        help="Number of processes to use for multiprocessing",
+    )
+    args = parser.parse_args()
+    print("gt:", args.gt)
+    print("pred:", args.pred)
+
+    if args.eval_type == "coco":
+        coco_eval(annFile=args.gt, resFile=args.pred, num_processes=args.num_process)
+    elif args.eval_type == "iou":
+        compute_IoU_cIoU_bIoU(
+            input_json=args.pred,
+            gti_annotations=args.gt,
+            num_processes=args.num_process,
+        )
+    elif args.eval_type == "polis":
+        polis_eval(annFile=args.gt, resFile=args.pred, num_processes=args.num_process)
+    elif args.eval_type == "all":
+        coco_eval(annFile=args.gt, resFile=args.pred, num_processes=args.num_process)
+        polis_eval(annFile=args.gt, resFile=args.pred, num_processes=args.num_process)
+        compute_IoU_cIoU_bIoU(
+            input_json=args.pred,
+            gti_annotations=args.gt,
+            num_processes=args.num_process,
+        )
