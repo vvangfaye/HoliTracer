@@ -1,6 +1,7 @@
 h5py
 numpy
 matplotlib
+setproctitle
 shapely
 scikit-image
 opencv-python

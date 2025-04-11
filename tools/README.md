@@ -57,10 +57,10 @@ torchrun --nproc_per_node=4 ./tools/seg_infer.py --config ./config/seg_config/wh
 ### 2.4 Convert Segmentation Results to COCO Format
 Transform the segmentation masks into COCO JSON format for further use:
 ```bash
-python ./trans/mask_to_coco.py \
-    --ground_truth_json "../data/datasets/WHU_building_dataset/{train/val/test}/coco_label_with_inter.json" \
-    --masks_directory "../data/datasets/WHU_building_dataset/{train/val/test}/predict/holitracer/seg/" \
-    --output_json "../data/datasets/WHU_building_dataset/{train/val/test}/predict/holitracer/holitracer.json" \
+python ./tools/trans/mask_to_coco.py \
+    --ground_truth_json "./data/datasets/WHU_building_dataset/{train/val/test}/coco_label_with_inter.json" \
+    --masks_directory "./data/datasets/WHU_building_dataset/{train/val/test}/predict/holitracer/seg/" \
+    --output_json "./data/datasets/WHU_building_dataset/{train/val/test}/predict/holitracer/holitracer.json" \
     --dataset whubuilding \
     --simplify_value 0.0 \
     -n 40
@@ -72,22 +72,22 @@ python ./trans/mask_to_coco.py \
 ### 3.1 Create Training H5PY File for the Train Set
 Prepare the `h5py` file for vectorization training:
 ```bash
-python ./dataset/make_vector_h5.py \
+python ./tools/dataset/make_vector_h5.py \
     --dataset WHU_building_dataset \
-    --pred_coco_file ../data/datasets/WHU_building_dataset/train/predict/holitracer/holitracer.json \
-    --gt_coco_file ../data/datasets/WHU_building_dataset/train/coco_label_with_inter.json \
-    --image_dir ../data/datasets/WHU_building_dataset/train/img \
+    --pred_coco_file ./data/datasets/WHU_building_dataset/train/predict/holitracer/holitracer.json \
+    --gt_coco_file ./data/datasets/WHU_building_dataset/train/coco_label_with_inter.json \
+    --image_dir ./data/datasets/WHU_building_dataset/train/img \
     --interpolation_distance 25 \
     --sampling_size 32 \
     --sliding_step 16 \
-    --output_file /data/datasets/WHU_building_dataset/h5_file/whubuilding_vector_train.h5 \
+    --output_file ./data/datasets/WHU_building_dataset/h5_file/whubuilding_vector_train.h5 \
     --process_num 40
 ```
 
 ### 3.2 Train the Vectorization Model
 Train the vectorization model using multiple GPUs (e.g., 4 GPUs):
 ```bash
-torchrun --nproc_per_node=4 ../vector_train.py --config ../config/vector_config/whubuilding_train.yaml
+torchrun --nproc_per_node=4 ./tools/vector_train.py --config ./configs/vector_config/whubuilding_train.yaml
 ```
 - **Output**: Training results are saved in `./vector_run`.
 - **Best Model**: The best-performing model is saved as `./vector_run/.../model_best.pth`.
