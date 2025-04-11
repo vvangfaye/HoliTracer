@@ -673,8 +673,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Process COCO annotations and generate training data in HDF5 format.")
     
     # Define command-line arguments
-    parser.add_argument('--dataset', type=str, default="VHR_road_dataset",
-                        help="Name of the dataset (default: VHR_road_dataset)")
     parser.add_argument('--pred_coco_file', type=str,
                         help="Path to the prediction COCO JSON file")
     parser.add_argument('--gt_coco_file', type=str,
@@ -698,9 +696,6 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    # Use provided arguments or set defaults
-    dataset = args.dataset
-    
     # Construct default file paths if not provided
     pred_coco_file = args.pred_coco_file
     gt_coco_file = args.gt_coco_file
@@ -732,7 +727,7 @@ if __name__ == "__main__":
     print(f"Saving training data to {h5_filename}...")
     with h5py.File(h5_filename, "w") as h5_file:
         total_samples = process_matches(
-            all_matches, gt_image_info, image_dir, L, F, h5_file, d, f"./{dataset}"
+            all_matches, gt_image_info, image_dir, L, F, h5_file, d, f"./visual_match"
         )
 
     print(f"共生成了 {total_samples} 条训练数据，并保存到 {h5_filename}")

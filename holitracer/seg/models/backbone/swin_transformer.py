@@ -697,6 +697,6 @@ def swin_l(pretrained=True):
                           use_checkpoint=False,
                           )
     if pretrained:
-        net.init_weights("./seg/models/pretrained/swin_large_patch4_window12_384_22k.pth")
+        net.init_weights("./holitracer/seg/models/pretrained/swin_large_patch4_window12_384_22k.pth")
 
     return net
