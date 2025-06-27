@@ -2,7 +2,7 @@
 
 Official implementation of the ICCV 2025 paper [**HoliTracer: Holistic Vectorization of Geographic Objects from Large-Size Remote Sensing Imagery**](https://image-1305984033.cos.ap-nanjing.myqcloud.com/pdf/2025_iccv_vector.pdf).
 
-![HoliTracer Overview](./resources/holitracer_demo.png)
+![HoliTracer Overview](./resources/holitracer.png)
 
 **Abstract:** This paper introduces HoliTracer, the framework designed to holistically extract vectorized geographic objects from large-size RSI. In HoliTracer, we enhance segmentation of large-size RSI using the Context Attention Net (CAN), which employs a local-to-global attention mechanism to capture contextual dependencies. Furthermore, we achieve holistic vectorization through a robust pipeline that leverages the Mask Contour Reformer (MCR) to reconstruct polygons and the Polygon Sequence Tracer (PST) to trace vertices.  Extensive experiments on large-size RSI datasets, including buildings, water bodies, and roads, demonstrate that HoliTracer outperforms state-of-the-art methods.
 
