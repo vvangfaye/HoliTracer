@@ -12,3 +12,4 @@ ipykernel
 tqdm
 timm
 tensorboard
+rasterio
