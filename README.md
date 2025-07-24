@@ -46,8 +46,8 @@ Pre-trained models and performance metrics:
 | Dataset        | PoLiS ↓ | CIoU  | AP    | APs   | APm   | APl   | IoU   | F1    | Download Link     |
 |----------------|---------|-------|-------|-------|-------|-------|-------|-------|-------------------|
 | WHU-building   | 3.63    | 82.30 | 61.07 | 40.37 | 80.30 | 60.00 | 91.60 | 95.41 | [Google Drive](https://drive.google.com/drive/folders/1AfUAyUE39Nm85ZADSSP1jAurG-t3KtHQ?usp=sharing) |
-| GLH-water      | 81.87   | 59.24 | 20.84 | 19.88 | 38.77 | 72.29 | 85.68 | 91.51 | [Google Drive](https://drive.google.com/drive/folders/1AfUAyUE39Nm85ZADSSP1jAurG-t3KtHQ?usp=sharing) |
-| VHR-road       | 134.13  | 6.10  | 1.58  | 0.08  | 0.40  | 3.99  | 46.48 | 60.63 | [Google Drive](https://drive.google.com/drive/folders/17vhqpvFLQmSE5ZtaQl0fZHyoJYpBLrIO?usp=sharing) |
+| GLH-water      | 81.87   | 59.24 | 20.84 | 19.88 | 38.77 | 72.29 | 85.68 | 91.51 | [Google Drive](https://drive.google.com/drive/folders/17vhqpvFLQmSE5ZtaQl0fZHyoJYpBLrIO?usp=sharing) |
+| VHR-road       | 134.13  | 6.10  | 1.58  | 0.08  | 0.40  | 3.99  | 46.48 | 60.63 | [Google Drive](https://drive.google.com/drive/folders/1r62wyltHZ4ciIlcVBE2yHS7onElMQpCL?usp=sharing) |
 
 Download the pre-trained models from the provided links and extract them to the `data/models` directory.
 
