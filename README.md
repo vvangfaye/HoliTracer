@@ -1,6 +1,6 @@
 # HoliTracer
-
-Official implementation of the ICCV 2025 paper [**HoliTracer: Holistic Vectorization of Geographic Objects from Large-Size Remote Sensing Imagery**](https://arxiv.org/abs/2507.16251).
+[![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://www.arxiv.org/abs/2507.16251)  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1ceLTSZZ8pZ2t7Z1pwPN2Cp9QuiN-Odln?usp=sharing)
+Official implementation of the ICCV 2025 paper HoliTracer: Holistic Vectorization of Geographic Objects from Large-Size Remote Sensing Imagery.
 
 ![HoliTracer Overview](./resources/holitracer_demo.png)
 
