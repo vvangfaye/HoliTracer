@@ -56,6 +56,7 @@ Download the pre-trained models from the provided links and extract them to the 
 Run the demo file to get started:
 - **[demo.py](./demo.py) and [geo_demo.py](./geo_demo.py)**(TIFF and Shapefile support): Includes examples for inference and visualization.
 
+Or run the python notebook [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1ceLTSZZ8pZ2t7Z1pwPN2Cp9QuiN-Odln?usp=sharing)
 ![results](./resources/results.png)
 
 ## 5. Training
