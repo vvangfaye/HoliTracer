@@ -93,7 +93,7 @@ torchrun --nproc_per_node=4 ./tools/vector_train.py --config ./configs/vector_co
 - **Best Model**: The best-performing model is saved as `./vector_run/.../model_best.pth`.
 
 ## 4. Inference
-Once you have the `model_best.pth` files for both the segmentation and vectorization models, use the [demo.py](../demo.py) or [geo_demo.py](../geo_demo.py)(tif and shapefile support) or ![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg) notebook to perform inference on images.
+Once you have the `model_best.pth` files for both the segmentation and vectorization models, use the [demo.py](../demo.py) or [geo_demo.py](../geo_demo.py)(tif and shapefile support) or ![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg) to perform inference on images.
 
 You can also use the `./seg_infer.py` and `./vector_infer.py` scripts to perform inference on the test set to get the metrics.
 
