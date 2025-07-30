@@ -70,18 +70,13 @@ def worker(gpu_id, positions, model_state_dict, model_class,
                 # img1 from original image
                 img1_patch = image0[i : i + s1, j : j + s1, :]
 
-                # img2 and img3 from padded image
-                # Calculate top-left corner in the padded array's coordinate system
-                padded_i = i + pad_size
-                padded_j = j + pad_size
-
                 # Extract img3 (s3 x s3) starting from (padded_i, padded_j)
                 # This corresponds to the window centered around (i,j) in the original
-                img3_patch = image_padded[padded_i : padded_i + s3, padded_j : padded_j + s3, :]
+                img3_patch = image_padded[i : i + s3, j : j + s3, :]
 
                 # Extract img2 (s2 x s2) starting offset by delta23 within the s3 window
-                img2_patch = image_padded[padded_i + delta23 : padded_i + delta23 + s2,
-                                          padded_j + delta23 : padded_j + delta23 + s2, :]
+                img2_patch = image_padded[i + delta23 : i + delta23 + s2,
+                                          j + delta23 : j + delta23 + s2, :]
 
                 # --- Resize, Normalize, Predict (Same as before) ---
 
@@ -333,11 +328,9 @@ def seg_geo_predict_api(
                 for (i, j) in tqdm(positions, desc="Single GPU Processing", total=len(positions)):
                     # --- Patch extraction using NumPy slicing ---
                     img1_patch = image0[i : i + s1, j : j + s1, :]
-                    padded_i = i + pad_size
-                    padded_j = j + pad_size
-                    img3_patch = image_padded[padded_i : padded_i + s3, padded_j : padded_j + s3, :]
-                    img2_patch = image_padded[padded_i + delta23 : padded_i + delta23 + s2,
-                                              padded_j + delta23 : padded_j + delta23 + s2, :]
+                    img3_patch = image_padded[i : i + s3, j : j + s3, :]
+                    img2_patch = image_padded[i + delta23 : i + delta23 + s2,
+                                              j + delta23 : j + delta23 + s2, :]
 
                     if img1_patch.size == 0 or img2_patch.size == 0 or img3_patch.size == 0: continue
 
