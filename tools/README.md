@@ -26,10 +26,10 @@ cd ../../ && pip install -e . # install holitracer with editable mode
 - Extract the dataset to the `data/datasets/WHU_building_dataset` directory.
 
 ### Pretrain Model Download
-Since the weights for the SkySense model aren't open-source, we've provided the Swin-L weights, which demonstrated nearly identical performance in our experiments.
+- Since the weights for the SkySense model aren't open-source, we've provided the Swin-L weights, which demonstrated nearly identical performance in our experiments.
 [Download](https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_large_patch4_window12_384_22k.pth)
 
-Please place this file into the `holitracer/seg/models/pretrained/` directory
+- Please place this file into the `holitracer/seg/models/pretrained/` directory
 
 ## 2. Training the Segmentation Model and Predicting Segmentation Results
 
