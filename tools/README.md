@@ -27,7 +27,6 @@ cd ../../ && pip install -e . # install holitracer with editable mode
 
 ### Pretrain Model Download
 Since the weights for the SkySense model aren't open-source, we've provided the Swin-L weights, which demonstrated nearly identical performance in our experiments.
-
 [Download](https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_large_patch4_window12_384_22k.pth)
 
 ## 2. Training the Segmentation Model and Predicting Segmentation Results
