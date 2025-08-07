@@ -11,7 +11,7 @@ Official implementation of the ICCV 2025 paper HoliTracer: Holistic Vectorizatio
 
 ### Requirements
 - OS: Linux distribution, our paper experiments are based on Ubuntu 22.04
-- Hardware: At least one GPU with 24GB memory and CUDA support, our paper experiments are based on NVIDIA A100 GPUs 40GB
+- Hardware: A GPU with at least 24GB of memory and CUDA support is needed for training (8GB is enough for inference). Our experiments were performed on NVIDIA A100 GPUs with 40GB of memory.
 
 ### Setup Instructions
 ```bash
