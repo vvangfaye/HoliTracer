@@ -379,7 +379,7 @@ class TrainEngine(BaseEngine):
         print(f"Validation MIoU: {miou} / GPU: {self.args.rank}")
         # Only rank 0 process prints and logs the results
         if self.args.rank == 0:
-            self.logger.info(f"Validation IoU: {miou}")
+            self.logger.info(f"Validation MIoU: {miou}")
             print(f"Validation MIoU: {miou}")  # Output to terminal.
 
             if self.earlystopping.CheckStopping(new_criterion=miou):
