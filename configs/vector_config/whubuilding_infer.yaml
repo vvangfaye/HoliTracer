@@ -10,10 +10,10 @@ down_ratio: 4
 
 dataset: 'whubuilding'
 
-image_path: "/home/data/vector_data/WHU_building_dataset/raw/test/img/"
-result_json: "/home/data/vector_data/WHU_building_dataset/raw/test/predict/coco_result/swinl_upernet_vlras_135_d25_32.json"
-coco_predictions: "/home/data/vector_data/WHU_building_dataset/raw/test/predict/coco_result/swin_l.json"
-coco_labels: "/home/data/vector_data/WHU_building_dataset/raw/test/coco_label_with_hole.json"
+image_path: "./data/datasets/WHU_building_dataset/test/img/"
+result_json: "./data/datasets/WHU_building_dataset/test/predict/holitracer/holitracer_refine.json"
+coco_predictions: "./data/datasets/WHU_building_dataset/test/predict/holitracer/holitracer.json"
+coco_labels: "./data/datasets/WHU_building_dataset/test/coco_label_with_inter.json"
 
 visual: False
 

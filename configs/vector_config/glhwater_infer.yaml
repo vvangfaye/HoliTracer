@@ -1,5 +1,5 @@
 device: 'cuda'
-resume: '../tools/vector_run/glhwater/vlras/train/180_50_32/best_model.pth'
+resume: './data/model/water/seg/best_model.pth'
 corner_angle_threshold: 180
 noncorner_angle_threshold: 180
 seed: 2333
@@ -10,10 +10,10 @@ down_ratio: 4
 
 dataset: 'glhwater'
 
-image_path: "/home/data/vector_data/GLH_water_dataset/raw/test/img/"
-result_json: "/home/data/vector_data/GLH_water_dataset/raw/test/predict/coco_result/swinl_upernet_vlras_180_d50_32.json"
-coco_predictions: "/home/data/vector_data/GLH_water_dataset/raw/test/predict/coco_result/swin_l.json"
-coco_labels: "/home/data/vector_data/GLH_water_dataset/raw/test/coco_label_with_hole.json"
+image_path: "./data/datasets/GLH_water_dataset/test/img/"
+result_json: "./data/datasets/GLH_water_dataset/test/predict/holitracer/holitracer_refine.json"
+coco_predictions: "./data/datasets/GLH_water_dataset/test/predict/holitracer/holitracer.json"
+coco_labels: "./data/datasets/GLH_water_dataset/test/coco_label_with_inter.json"
 
 visual: False
 

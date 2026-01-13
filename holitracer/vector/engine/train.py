@@ -2,6 +2,7 @@ import os
 import json
 import cv2
 import logging
+import copy
 import json
 import numpy as np
 import torch
@@ -69,8 +70,8 @@ class TrainEngine(BaseEngine):
             for key, value in vars(args).items():
                 self.logger.info(f"    {key}: {value}")
 
-        # Data loader
-        self.train_loader, self.val_loader = self._build_data()
+        # Data loader and val data
+        self.train_loader = self._build_data()
         self._build_eval_data()
 
         # Model, loss function, optimizer, learning rate scheduler
@@ -128,8 +129,7 @@ class TrainEngine(BaseEngine):
     def _build_data(self):
         # Dataset path
         train_h5_path = self.args.train_h5_path
-        if not self.args.eval_whole:
-            val_h5_path = self.args.val_h5_path
+
         # Dataset
         # Define preprocessing, resize image to 512x512, normalize, convert to tensor
         transform = transforms.Compose(
@@ -150,13 +150,11 @@ class TrainEngine(BaseEngine):
         else:
             raise ValueError(f"Invalid dataset: {self.args.dataset}")
         train_dataset = Dataset(train_h5_path, self.args.down_ratio, transform)
-        if not self.args.eval_whole:
-            val_dataset = Dataset(val_h5_path, self.args.down_ratio, transform)
+
         if self.args.distributed:
             # Distributed sampler
             train_sampler = DistributedSampler(train_dataset)
-            if not self.args.eval_whole:
-                val_sampler = DistributedSampler(val_dataset)
+
             # Data loader
             train_loader = DataLoader(
                 train_dataset,
@@ -166,15 +164,7 @@ class TrainEngine(BaseEngine):
                 pin_memory=True,
                 sampler=train_sampler,
             )
-            if not self.args.eval_whole:
-                val_loader = DataLoader(
-                    val_dataset,
-                    batch_size=self.args.batch_size,
-                    shuffle=False,
-                    num_workers=self.args.num_workers,
-                    pin_memory=True,
-                    sampler=val_sampler,
-                )
+
         else:
             train_loader = DataLoader(
                 train_dataset,
@@ -183,26 +173,12 @@ class TrainEngine(BaseEngine):
                 num_workers=self.args.num_workers,
                 pin_memory=True,
             )
-            if not self.args.eval_whole:
-                val_loader = DataLoader(
-                    val_dataset,
-                    batch_size=self.args.batch_size,
-                    shuffle=False,
-                    num_workers=self.args.num_workers,
-                    pin_memory=True,
-                )
 
         if self.args.rank == 0:
             print(f"Train data length: {len(train_dataset)}")
             print(f"Train loader length: {len(train_loader)}")
-            if not self.args.eval_whole:
-                print(f"Val data length: {len(val_dataset)}")
-                print(f"Val loader length: {len(val_loader)}")
 
-        if not self.args.eval_whole:
-            return train_loader, val_loader
-        else:
-            return train_loader, None
+        return train_loader
 
     def _build_eval_data(self):
         """Builds the list of images and loads predicted points."""
@@ -225,10 +201,10 @@ class TrainEngine(BaseEngine):
         self.test_image_names = sorted(test_image_names)
 
         val_coco_predictions_path = os.path.join(
-            image_folder, "val", "predict", "swin_l", "swinl_upernet_nofliter.json"
+            image_folder, "val", "predict", "holitracer", "holitracer.json"
         )
         test_coco_predictions_path = os.path.join(
-            image_folder, "test", "predict", "swin_l", "swinl_upernet_nofliter.json"
+            image_folder, "test", "predict", "holitracer", "holitracer.json"
         )
         self.val_coco_labels_path = os.path.join(
             image_folder, "val", "coco_label_with_inter.json"
@@ -273,14 +249,11 @@ class TrainEngine(BaseEngine):
 
     def train(self):
         num_epochs = self.args.epochs
-        # self.validate(0)
         self._eval_whole(0, eval_type="all", split="val")
         for epoch in range(self.start_epoch, num_epochs):
             # Set sampler epoch
             if self.args.distributed:
                 self.train_loader.sampler.set_epoch(epoch)
-                if not self.args.eval_whole:
-                    self.val_loader.sampler.set_epoch(epoch)
             if self.args.rank == 0:
                 self.logger.info(f"Epoch {epoch + 1}/{num_epochs}")
                 print(f"Epoch {epoch + 1}/{num_epochs}")
@@ -331,30 +304,6 @@ class TrainEngine(BaseEngine):
                 if self.args.rank == 0:
                     self.save_checkpoint(epoch, is_best=False)
 
-            # else:
-            #     val_loss = self.validate(epoch)
-            #     # Learning rate scheduler
-            #     self.scheduler.step(val_loss)
-
-            #     # Save model
-            #     if self.args.rank == 0:
-            #         if val_loss < self.best_loss:
-            #             self.best_loss = val_loss
-            #             # Save the best model.
-            #             if self.args.distributed:
-            #                 torch.save(
-            #                     self.model.module.state_dict(), self.best_model_path
-            #                 )
-            #             else:
-            #                 torch.save(self.model.state_dict(), self.best_model_path)
-
-            #             self.logger.info(f"Saved best model at epoch {epoch + 1}")
-            #         # Save latest model
-            #         self.save_checkpoint(epoch, is_best=False)
-            #         # Step 3: Log metrics to TensorBoard (Epoch level)
-            #         if self.writer:
-            #             self.writer.add_scalar("Loss/val_epoch", val_loss, epoch)
-            # Sync all processes
             if self.args.distributed:
                 torch.distributed.barrier()
         if self.args.rank == 0:
@@ -752,26 +701,26 @@ class TrainEngine(BaseEngine):
                 else:
                     polis = polis_eval(
                         annFile=label_path,
-                        resFile=coco_dict.copy(),
+                        resFile=copy.deepcopy(coco_dict),
                         num_processes=num_process,
                     )
                     coco_metric = coco_eval(
                         annFile=label_path,
-                        resFile=coco_dict.copy(),
+                        resFile=copy.deepcopy(coco_dict),
                         num_processes=num_process,
                     )
-                    # f1, iou, ciou, biou = compute_IoU_cIoU_bIoU(
-                    #     input_json=coco_dict,
-                    #     gti_annotations=label_path,
-                    #     num_processes=num_process,
-                    # )
+                    f1, iou, ciou, biou = compute_IoU_cIoU_bIoU(
+                        input_json=coco_dict,
+                        gti_annotations=label_path,
+                        num_processes=num_process,
+                    )
                 self.logger.info(
                     f"Epoch {epoch + 1} {split} COCO Metric: {coco_metric}"
                 )
-                # self.logger.info(f"Epoch {epoch + 1} {split} F1: {f1}")
-                # self.logger.info(f"Epoch {epoch + 1} {split} IoU: {iou}")
-                # self.logger.info(f"Epoch {epoch + 1} {split} CIoU: {ciou}")
-                # self.logger.info(f"Epoch {epoch + 1} {split} BIoU: {biou}")
+                self.logger.info(f"Epoch {epoch + 1} {split} F1: {f1}")
+                self.logger.info(f"Epoch {epoch + 1} {split} IoU: {iou}")
+                self.logger.info(f"Epoch {epoch + 1} {split} CIoU: {ciou}")
+                self.logger.info(f"Epoch {epoch + 1} {split} BIoU: {biou}")
                 self.logger.info(f"Epoch {epoch + 1} {split} Polis: {polis}")
             else:
                 raise ValueError(f"Invalid eval_type: {eval_type}")
