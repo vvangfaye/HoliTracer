@@ -34,7 +34,7 @@ class MVTrainDataset(Dataset):
         self.image3 = hf["image3"]
         self.mask = hf["label"]
         self.training = training
-        
+
         self.std = [0.229, 0.224, 0.225]
         # self.std = [i * 255 for i in self.std]
         self.mean = [0.485, 0.456, 0.406]
@@ -64,7 +64,7 @@ class MVTrainDataset(Dataset):
         img1 = normalize_function_mm(img1)
         img2 = normalize_function_mm(img2)
         img3 = normalize_function_mm(img3)
-        
+
         out = {
             "img1": img1,
             "img2": img2,
@@ -87,38 +87,6 @@ class MVTrainDataset(Dataset):
         Returns:
             tuple: Augmented images and annotation mask.
         """
-        # def color_distortion(image):
-        #    """Applies random brightness, contrast, and saturation adjustments."""
-        #    alpha = 1.0 + np.random.uniform(-0.5, 0.5)  # Brightness
-        #    beta = 0.5 + np.random.uniform(-0.5, 0.5)   # Contrast
-        #    saturation_scale = 0.5 + np.random.uniform(0, 1)  # Saturation
-
-        #    image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
-        #    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        #    hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)
-        #    distorted_image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-        #    return distorted_image
-
-        # def gaussian_noise(image):
-        #    """Adds Gaussian noise to the image."""
-        #    row, col, ch = image.shape
-        #    mean = 0
-        #    var = 0.1
-        #    sigma = var ** 0.5
-        #    gauss = np.random.normal(mean, sigma, (row, col, ch))
-        #    noisy = np.clip(image + gauss * 255, 0, 255).astype(np.uint8)
-        #    return noisy
-
-        # def random_cover(image):
-        #    """Covers a random region of the image with zeros."""
-        #    row, col, ch = image.shape
-        #    r = random.randint(8, row // 8)
-        #    c = random.randint(8, col // 8)
-        #    m = np.zeros((r, c, ch), dtype=image.dtype)
-        #    sr = random.randint(0, row - r - 1)
-        #    sc = random.randint(0, col - c - 1)
-        #    image[sr:sr + r, sc:sc + c, :] = m
-        #    return image
 
         if random.random() < 0.5:
             flip_type = random.choice([0, 1])
@@ -132,29 +100,8 @@ class MVTrainDataset(Dataset):
             img2 = photo_metric_distortion(img2)
             img3 = photo_metric_distortion(img3)
 
-        # if random.random() < 0.5:
-        #    img1 = photo_metric_distortion(img1)
-        #    img2 = photo_metric_distortion(img2)
-        #    img3 = photo_metric_distortion(img3)
-
-        # Uncomment below to enable additional augmentations
-        # if random.random() < 0.4:
-        #     img1 = color_distortion(img1)
-        #     img2 = color_distortion(img2)
-        #     img3 = color_distortion(img3)
-        # if random.random() < 0.3:
-        #     img1 = gaussian_noise(img1)
-        #     img2 = gaussian_noise(img2)
-        #     img3 = gaussian_noise(img3)
-
-        # if random.random() < 0.5:
-        #    img1 = random_cover(img1)
-        # if random.random() < 0.2:
-        #     img2 = random_cover(img2)
-        # if random.random() < 0.2:
-        #     img3 = random_cover(img3)
-
         return img1, img2, img3, ann
+
 
 class MVInferDataset(Dataset):
     def __init__(self, hdf5_path, args):
@@ -170,12 +117,11 @@ class MVInferDataset(Dataset):
         super(MVInferDataset, self).__init__()
         self.hdf5_path = hdf5_path
         self.args = args if isinstance(args, dict) else vars(args)
-        self.nclass = self.args.get('nclass', 2)
+        self.nclass = self.args.get("nclass", 2)
 
         # Initialize normalization (same as used during training)
         self.normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
+            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
         )
 
         # Placeholders for HDF5 file and metadata
@@ -190,8 +136,8 @@ class MVInferDataset(Dataset):
         """
         if self.length is None:
             # Open HDF5 file in read mode to get the length
-            with h5py.File(self.hdf5_path, 'r') as h5_file:
-                self.length = h5_file['image1'].shape[0]
+            with h5py.File(self.hdf5_path, "r") as h5_file:
+                self.length = h5_file["image1"].shape[0]
         return self.length
 
     def __getitem__(self, idx):
@@ -212,19 +158,21 @@ class MVInferDataset(Dataset):
         """
         # Open the HDF5 file if not already open
         if self.h5_file is None:
-            self.h5_file = h5py.File(self.hdf5_path, 'r', libver='latest', swmr=True)
+            self.h5_file = h5py.File(self.hdf5_path, "r", libver="latest", swmr=True)
 
             # Load image names and sizes once
-            self.image_names = [name.decode('utf-8') for name in self.h5_file['image_names'][:]]
-            self.image_sizes = self.h5_file['image_sizes'][:]
+            self.image_names = [
+                name.decode("utf-8") for name in self.h5_file["image_names"][:]
+            ]
+            self.image_sizes = self.h5_file["image_sizes"][:]
 
         # Retrieve multi-scale images and metadata
-        img1 = self.h5_file['image1'][idx]  # Shape: (3, H, W), uint8
-        img2 = self.h5_file['image2'][idx]  # Shape: (3, H, W), uint8
-        img3 = self.h5_file['image3'][idx]  # Shape: (3, H, W), uint8
-        image_index = self.h5_file['image_index'][idx]  # Integer
-        i = self.h5_file['i'][idx]  # Integer
-        j = self.h5_file['j'][idx]  # Integer
+        img1 = self.h5_file["image1"][idx]  # Shape: (3, H, W), uint8
+        img2 = self.h5_file["image2"][idx]  # Shape: (3, H, W), uint8
+        img3 = self.h5_file["image3"][idx]  # Shape: (3, H, W), uint8
+        image_index = self.h5_file["image_index"][idx]  # Integer
+        i = self.h5_file["i"][idx]  # Integer
+        j = self.h5_file["j"][idx]  # Integer
 
         # Convert images to float tensors and normalize
         img1 = self.to_tensor(img1)
@@ -232,12 +180,12 @@ class MVInferDataset(Dataset):
         img3 = self.to_tensor(img3)
 
         sample = {
-            'img1': img1,  # Tensor: (3, H, W)
-            'img2': img2,  # Tensor: (3, H, W)
-            'img3': img3,  # Tensor: (3, H, W)
-            'image_index': torch.tensor(image_index, dtype=torch.long),
-            'i': torch.tensor(i, dtype=torch.long),
-            'j': torch.tensor(j, dtype=torch.long),
+            "img1": img1,  # Tensor: (3, H, W)
+            "img2": img2,  # Tensor: (3, H, W)
+            "img3": img3,  # Tensor: (3, H, W)
+            "image_index": torch.tensor(image_index, dtype=torch.long),
+            "i": torch.tensor(i, dtype=torch.long),
+            "j": torch.tensor(j, dtype=torch.long),
         }
 
         return sample
@@ -271,9 +219,11 @@ class MVInferDataset(Dataset):
             tuple: (image_names, image_sizes)
         """
         if self.h5_file is None:
-            with h5py.File(self.hdf5_path, 'r') as h5_file:
-                image_names = [name.decode('utf-8') for name in h5_file['image_names'][:]]
-                image_sizes = h5_file['image_sizes'][:]
+            with h5py.File(self.hdf5_path, "r") as h5_file:
+                image_names = [
+                    name.decode("utf-8") for name in h5_file["image_names"][:]
+                ]
+                image_sizes = h5_file["image_sizes"][:]
         else:
             image_names = self.image_names
             image_sizes = self.image_sizes
@@ -292,6 +242,7 @@ class MVInferDataset(Dataset):
         Destructor to ensure the HDF5 file is closed.
         """
         self.close()
+
 
 class SVTrainDataset(Dataset):
     """Single View Dataset for loading images and labels from an HDF5 file."""
@@ -339,7 +290,7 @@ class SVTrainDataset(Dataset):
         if self.training:
             img, ann = self.augment(img, ann)  # Modified augment call
 
-        img = normalize_function_mm(img) # Normalize single image
+        img = normalize_function_mm(img)  # Normalize single image
 
         out = {
             "img": img,  # Changed key to "img" for single view
@@ -368,4 +319,4 @@ class SVTrainDataset(Dataset):
         if random.random() < 0.5:
             img = photo_metric_distortion(img)
 
-        return img, ann # Return single image and annotation
+        return img, ann  # Return single image and annotation

@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 Image.MAX_IMAGE_PIXELS = None
 
+
 def crop_patch(image, label, start_coord=(0, 0), size=512):
     """
     Crops a patch from the given image and label starting at specified coordinates.
@@ -158,6 +159,7 @@ def parse_args():
     )
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     args = parse_args()

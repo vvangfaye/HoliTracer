@@ -32,11 +32,11 @@ class TrainEngine(BaseEngine):
         self.logger = logging.getLogger()
 
         if self.args.rank == 0:
-            # 格式化输出
+            # Format output
             print("Arguments:")
             for key, value in vars(args).items():
                 print(f"    {key}: {value}")
-            # 写入日志
+            # Write log
             self.logger.info("Arguments:")
             for key, value in vars(args).items():
                 self.logger.info(f"    {key}: {value}")
@@ -47,10 +47,10 @@ class TrainEngine(BaseEngine):
             self.model = DDP(
                 self.model, device_ids=[args.local_rank], output_device=args.local_rank
             )
-            
+
         if self.args.resume is not None:
             self.load_resume()
-        
+
         self.start_epoch = 0
         self.optimizer, self.scheduler = self._build_optimizer()
         self.criterion = self._build_loss()
@@ -77,7 +77,7 @@ class TrainEngine(BaseEngine):
                 backbone=self.args.backbone,
                 nclass=self.args.nclass,
                 isContext=self.args.isContext,
-                pretrain=True
+                pretrain=True,
             )
         else:
             raise ValueError(f"Invalid segmentation head: {self.args.segHead}")
@@ -160,7 +160,7 @@ class TrainEngine(BaseEngine):
                 train_data = VHRRoadMVTrain(hdf5_path=train_h5_path, training=True)
             else:
                 train_data = VHRRoadSVTrain(hdf5_path=train_h5_path, training=True)
-        # 截取数据集的一部分用于调试
+        # Subset dataset for debugging
         # train_data = torch.utils.data.Subset(train_data, list(range(500)))
 
         if self.args.distributed:
@@ -188,7 +188,7 @@ class TrainEngine(BaseEngine):
             else:
                 val_data = WHUBuildingSVTrain(hdf5_path=val_h5_path)
         elif self.args.dataset == "glhwater":
-            if self.args.isContext: 
+            if self.args.isContext:
                 val_data = GLHWaterMVTrain(hdf5_path=val_h5_path)
             else:
                 val_data = GLHWaterSVTrain(hdf5_path=val_h5_path)
@@ -197,7 +197,7 @@ class TrainEngine(BaseEngine):
                 val_data = VHRRoadMVTrain(hdf5_path=val_h5_path)
             else:
                 val_data = VHRRoadSVTrain(hdf5_path=val_h5_path)
-        # 截取数据集的一部分用于调试
+        # Subset dataset for debugging
         # val_data = torch.utils.data.Subset(val_data, list(range(100)))
 
         if self.args.distributed:

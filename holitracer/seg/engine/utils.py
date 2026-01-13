@@ -2,6 +2,7 @@ import torch
 import cv2
 import numpy as np
 
+
 def normalize_function_mm(img, device):
     # Mean values used to pre-training the pre-trained backbone model
     img = np.float32(img) if img.dtype != np.float32 else img.copy()
@@ -17,7 +18,7 @@ def normalize_function_mm(img, device):
     cv2.subtract(img, mean, img)  # inplace
     cv2.multiply(img, stdinv, img)  # inplace
     tensor = torch.from_numpy(img.transpose((2, 0, 1))).float()
-    
+
     return tensor.unsqueeze(0).to(device)
 
 

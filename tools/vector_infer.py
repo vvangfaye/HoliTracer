@@ -16,7 +16,7 @@ def parse_args():
         "--config",
         type=str,
         default="./vector/config/whubuilding_infer.yaml",
-        help="配置文件路径",
+        help="Configuration file path",
     )
     parser.add_argument(
         "--local_rank", type=int, default=0, help="Local rank for distributed training"
@@ -27,7 +27,7 @@ def parse_args():
         config_args = yaml.safe_load(f)
     args = argparse.Namespace(**config_args)
 
-    # 从环境变量中读取 local_rank、rank 和 world_size
+    # Read local_rank, rank, and world_size from environment variables
     args.local_rank = int(os.getenv("LOCAL_RANK", 0))
     args.rank = int(os.getenv("RANK", 0))
     args.world_size = int(os.getenv("WORLD_SIZE", 1))

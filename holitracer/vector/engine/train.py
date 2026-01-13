@@ -1,4 +1,5 @@
 import os
+import json
 import cv2
 import logging
 import json
@@ -25,9 +26,20 @@ class TrainEngine(BaseEngine):
         super(TrainEngine, self).__init__(args)
 
         self.global_step = 0  # Initialize global step counter
-        args_dir = str(args.corner_angle_threshold) + "_" + str(args.d) + "_" + str(args.num_points)
+        args_dir = (
+            str(args.corner_angle_threshold)
+            + "_"
+            + str(args.d)
+            + "_"
+            + str(args.num_points)
+        )
         self.run_dir = os.path.join(
-            os.getcwd(), self.args.run_dir, self.args.dataset, self.args.model, "train", args_dir
+            os.getcwd(),
+            self.args.run_dir,
+            self.args.dataset,
+            self.args.model,
+            "train",
+            args_dir,
         )
         os.makedirs(self.run_dir, exist_ok=True)
 
@@ -46,22 +58,22 @@ class TrainEngine(BaseEngine):
             self.writer = None  # Only main process writes logs
 
         self.logger = logging.getLogger()
-        
+
         if self.args.rank == 0:
-            # 格式化输出
+            # Format output
             print("Arguments:")
             for key, value in vars(args).items():
                 print(f"    {key}: {value}")
-            # 写入日志
+            # Write log
             self.logger.info("Arguments:")
             for key, value in vars(args).items():
                 self.logger.info(f"    {key}: {value}")
 
-        # 数据加载器
+        # Data loader
         self.train_loader, self.val_loader = self._build_data()
         self._build_eval_data()
 
-        # 模型、损失函数、优化器、学习率调度器
+        # Model, loss function, optimizer, learning rate scheduler
         if self.args.loss_type == "normal":
             self.criterion = NormalLossWithMask(
                 weight_regression=self.args.weight_regression,
@@ -87,13 +99,13 @@ class TrainEngine(BaseEngine):
             self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
                 self.optimizer, mode="min", patience=5
             )
-        # 其他
+        # Others
         self.start_epoch = 0
         self.best_loss = float("inf")
         self.best_ap = 0.0
         self.best_model_path = os.path.join(self.run_dir, "best_model.pth")
         self.last_model_path = os.path.join(self.run_dir, "last_model.pth")
-        # 如果需要恢复训练
+        # If resume training is needed
         if self.args.resume is not None:
             self._load_checkpoint()
 
@@ -114,12 +126,12 @@ class TrainEngine(BaseEngine):
         )
 
     def _build_data(self):
-        # 数据集路径
+        # Dataset path
         train_h5_path = self.args.train_h5_path
         if not self.args.eval_whole:
             val_h5_path = self.args.val_h5_path
-        # 数据集
-        # 定义预处理, 将图像缩放到 512x512，归一化，转换为张量
+        # Dataset
+        # Define preprocessing, resize image to 512x512, normalize, convert to tensor
         transform = transforms.Compose(
             [
                 transforms.Resize((512, 512)),
@@ -137,19 +149,15 @@ class TrainEngine(BaseEngine):
             Dataset = VHRRoadVector
         else:
             raise ValueError(f"Invalid dataset: {self.args.dataset}")
-        train_dataset = Dataset(
-            train_h5_path, self.args.down_ratio, transform
-        )
+        train_dataset = Dataset(train_h5_path, self.args.down_ratio, transform)
         if not self.args.eval_whole:
-            val_dataset = Dataset(
-                val_h5_path, self.args.down_ratio, transform
-            )
+            val_dataset = Dataset(val_h5_path, self.args.down_ratio, transform)
         if self.args.distributed:
-            # 分布式采样器
+            # Distributed sampler
             train_sampler = DistributedSampler(train_dataset)
             if not self.args.eval_whole:
                 val_sampler = DistributedSampler(val_dataset)
-            # 数据加载器
+            # Data loader
             train_loader = DataLoader(
                 train_dataset,
                 batch_size=self.args.batch_size,
@@ -268,7 +276,7 @@ class TrainEngine(BaseEngine):
         # self.validate(0)
         self._eval_whole(0, eval_type="all", split="val")
         for epoch in range(self.start_epoch, num_epochs):
-            # 设置 sampler 的 epoch
+            # Set sampler epoch
             if self.args.distributed:
                 self.train_loader.sampler.set_epoch(epoch)
                 if not self.args.eval_whole:
@@ -276,11 +284,11 @@ class TrainEngine(BaseEngine):
             if self.args.rank == 0:
                 self.logger.info(f"Epoch {epoch + 1}/{num_epochs}")
                 print(f"Epoch {epoch + 1}/{num_epochs}")
-            # 训练一个 epoch
+            # Train one epoch
             train_loss = self._train_one_epoch(epoch)
             if self.args.rank == 0 and self.writer:
                 self.writer.add_scalar("Loss/train_epoch", train_loss, epoch)
-            # 验证
+            # Validate
             if self.args.eval_whole and epoch + 1 >= 5:
                 coco_eval = None
                 ap = None
@@ -291,7 +299,7 @@ class TrainEngine(BaseEngine):
                     ap = coco_eval[0]
 
                 if self.args.distributed:
-                    # 广播 ap
+                    # Broadcast ap
                     ap_tensor = torch.tensor(
                         [ap if self.args.rank == 0 else 0.0],
                         dtype=torch.float32,
@@ -322,13 +330,13 @@ class TrainEngine(BaseEngine):
 
                 if self.args.rank == 0:
                     self.save_checkpoint(epoch, is_best=False)
-                    
+
             # else:
             #     val_loss = self.validate(epoch)
-            #     # 学习率调度
+            #     # Learning rate scheduler
             #     self.scheduler.step(val_loss)
 
-            #     # 保存模型
+            #     # Save model
             #     if self.args.rank == 0:
             #         if val_loss < self.best_loss:
             #             self.best_loss = val_loss
@@ -341,23 +349,23 @@ class TrainEngine(BaseEngine):
             #                 torch.save(self.model.state_dict(), self.best_model_path)
 
             #             self.logger.info(f"Saved best model at epoch {epoch + 1}")
-            #         # 保存最新模型
+            #         # Save latest model
             #         self.save_checkpoint(epoch, is_best=False)
             #         # Step 3: Log metrics to TensorBoard (Epoch level)
             #         if self.writer:
             #             self.writer.add_scalar("Loss/val_epoch", val_loss, epoch)
-            # 同步所有进程
+            # Sync all processes
             if self.args.distributed:
                 torch.distributed.barrier()
         if self.args.rank == 0:
             self.logger.info("training complete.")
-        # 加载最佳模型
+        # Load best model
         model_state_dict = torch.load(self.best_model_path)
         if self.args.distributed:
             self.model.module.load_state_dict(model_state_dict)
         else:
             self.model.load_state_dict(model_state_dict)
-        # TODO:all 会报错，不知道什么原因
+        # TODO: all raises error, unknown reason
         self._eval_whole(num_epochs, eval_type="all", split="test")
         if self.writer:
             self.writer.close()
@@ -374,17 +382,17 @@ class TrainEngine(BaseEngine):
         else:
             tbar = self.train_loader
         for batch in tbar:
-            # 获取数据
+            # Get data
             image = batch["image"].to(self.device, non_blocking=True)
             pred_points = batch["pred_points"].to(self.device, non_blocking=True)
             gt_points = batch["gt_points"].to(self.device, non_blocking=True)
             is_corner_gt = batch["is_corner"].to(self.device, non_blocking=True)
             valid_mask = batch["valid_mask"].to(self.device, non_blocking=True)
-            # 前向传播
+            # Forward pass
             refined_points, is_corner_logits = self.model(
                 image, pred_points, valid_mask
             )
-            # 计算损失
+            # Calculate loss
             if self.args.loss_type == "normal":
                 loss, reg_loss, cls_loss = self.criterion(
                     refined_points,
@@ -393,13 +401,13 @@ class TrainEngine(BaseEngine):
                     is_corner_gt,
                     valid_mask,
                 )
-                # 反向传播和优化
+                # Backward pass and optimization
                 self.optimizer.zero_grad()
                 loss = loss.mean()
                 loss.backward()
                 self.optimizer.step()
 
-                # 记录损失
+                # Record loss
                 total_loss += loss.item()
                 total_reg_loss += reg_loss
                 total_cls_loss += cls_loss
@@ -424,13 +432,13 @@ class TrainEngine(BaseEngine):
                     is_corner_gt,
                     valid_mask,
                 )
-                # 反向传播和优化
+                # Backward pass and optimization
                 self.optimizer.zero_grad()
                 loss = loss.mean()
                 loss.backward()
                 self.optimizer.step()
 
-                # 记录损失
+                # Record loss
                 total_loss += loss.item()
                 total_reg_loss += reg_loss
                 total_cls_loss += cls_loss
@@ -454,10 +462,10 @@ class TrainEngine(BaseEngine):
             else:
                 raise ValueError(f"Invalid loss type: {self.args.loss_type}")
 
-            # 更新进度条
+            # Update progress bar
             if self.args.rank == 0:
                 tbar.set_postfix(loss=loss.item())
-        # 计算平均损失
+        # Calculate average loss
         avg_loss = total_loss / len(self.train_loader)
         avg_reg_loss = total_reg_loss / len(self.train_loader)
         avg_cls_loss = total_cls_loss / len(self.train_loader)
@@ -483,18 +491,18 @@ class TrainEngine(BaseEngine):
             tbar = self.val_loader
         with torch.no_grad():
             for batch in tbar:
-                # 获取数据
+                # Get data
                 image = batch["image"].to(self.device, non_blocking=True)
                 idx = batch["idx"]
                 pred_points = batch["pred_points"].to(self.device, non_blocking=True)
                 gt_points = batch["gt_points"].to(self.device, non_blocking=True)
                 is_corner_gt = batch["is_corner"].to(self.device, non_blocking=True)
                 valid_mask = batch["valid_mask"].to(self.device, non_blocking=True)
-                # 前向传播
+                # Forward pass
                 refined_points, is_corner_logits = self.model(
                     image, pred_points, valid_mask
                 )
-                # 计算损失
+                # Calculate loss
                 loss, reg_loss, cls_loss = self.criterion(
                     refined_points,
                     gt_points,
@@ -502,7 +510,7 @@ class TrainEngine(BaseEngine):
                     is_corner_gt,
                     valid_mask,
                 )
-                # 记录损失
+                # Record loss
                 total_loss += loss.item()
                 total_reg_loss += reg_loss
                 total_cls_loss += cls_loss
@@ -519,7 +527,7 @@ class TrainEngine(BaseEngine):
                         "Loss/val_cls_iter", cls_loss, self.global_step
                     )
 
-                # 更新进度条
+                # Update progress bar
                 if self.args.rank == 0:
                     tbar.set_postfix(loss=loss.item())
 
@@ -551,11 +559,11 @@ class TrainEngine(BaseEngine):
                                 is_corner_gt[i],
                             )
 
-        # 计算平均损失
+        # Calculate average loss
         avg_loss = total_loss / len(self.val_loader)
         avg_reg_loss = total_reg_loss / len(self.val_loader)
         avg_cls_loss = total_cls_loss / len(self.val_loader)
-        # 所有进程计算损失总和
+        # Sum losses across all processes
         avg_loss_tensor = torch.tensor([avg_loss], device=self.device)
         avg_reg_loss_tensor = torch.tensor([avg_reg_loss], device=self.device)
         avg_cls_loss_tensor = torch.tensor([avg_cls_loss], device=self.device)
@@ -593,7 +601,7 @@ class TrainEngine(BaseEngine):
     ):
         save_dir = os.path.join(self.run_dir, "save_images", f"epoch_{epoch}")
         os.makedirs(save_dir, exist_ok=True)
-        # 保存image+gt_points, 从512*512恢复到原始尺寸
+        # Save image+gt_points, restore from 512*512 to original size
         image = ori_image.copy()
         ori_w, ori_h = image.shape[1], image.shape[0]
         gt_points = gt_points.cpu().numpy()
@@ -604,7 +612,7 @@ class TrainEngine(BaseEngine):
             os.path.join(save_dir, f"{idx}_gt.jpg"),
             cv2.cvtColor(image, cv2.COLOR_RGB2BGR),
         )
-        # 保存image+pred_points
+        # Save image+pred_points
         image = ori_image.copy()
         pred_points = pred_points.cpu().numpy()
         pred_points = (
@@ -616,7 +624,7 @@ class TrainEngine(BaseEngine):
             os.path.join(save_dir, f"{idx}_pred.jpg"),
             cv2.cvtColor(image, cv2.COLOR_RGB2BGR),
         )
-        # 保存image+refined_points
+        # Save image+refined_points
         image = ori_image.copy()
         refined_points = refined_points.cpu().numpy()
         refined_points = refined_points * np.array([ori_w, ori_h]) / 512
@@ -642,15 +650,15 @@ class TrainEngine(BaseEngine):
         torch.save(state, self.last_model_path)
 
     def _eval_whole(self, epoch, eval_type="coco", split="val"):
-        """对输入图像执行推理。"""
-        """只有rank=0的进程会执行评估代码"""
+        """Execute inference on input images."""
+        """Only rank=0 process will execute evaluation code"""
         self.model.eval()
         with torch.no_grad():
-            # 如果是分布式环境，确保同步
+            # If distributed environment, ensure synchronization
             if dist.is_initialized():
                 dist.barrier()
 
-            # 获取图像列表
+            # Get image list
             if split == "val":
                 image_names = self.val_image_names
                 image_folder = self.val_image_folder
@@ -666,7 +674,7 @@ class TrainEngine(BaseEngine):
             else:
                 raise ValueError(f"Invalid split: {split}")
 
-            # 如果是分布式，分割图像列表
+            # If distributed, split image list
             if self.args.distributed:
                 world_size = dist.get_world_size()
                 rank = dist.get_rank()
@@ -678,7 +686,7 @@ class TrainEngine(BaseEngine):
             for image_idx, image_name in enumerate(
                 tqdm(image_names, desc=f"Inferring (GPU {rank})", ncols=80)
             ):
-                # 推理
+                # Inference
                 image_id = image_id_map[image_name]
                 predictions = predictions_by_image.get(image_id, [])
                 one_results = infer_visual_one_whole_image(
@@ -696,16 +704,16 @@ class TrainEngine(BaseEngine):
                 refined_annotations.extend(one_results)
 
             if self.args.distributed:
-                # 创建一个列表用于存储所有进程的结果
+                # Create a list to store results from all processes
                 output_objects = [None for _ in range(dist.get_world_size())]
 
-                # 收集所有进程的结果
+                # Collect results from all processes
                 dist.barrier()
                 dist.all_gather_object(output_objects, refined_annotations)
 
-                # 在主进程(rank 0)合并结果
+                # Merge results in main process (rank 0)
                 if self.args.rank == 0:
-                    # 展平列表
+                    # Flatten list
                     all_results = [
                         item for sublist in output_objects for item in sublist
                     ]
@@ -723,7 +731,7 @@ class TrainEngine(BaseEngine):
             }
             print(f"all_results: {len(all_results)}")
 
-            # 评估结果
+            # Evaluate results
             if eval_type == "coco":
                 if len(all_results) == 0:
                     coco_metric = [0, 0, 0, 0, 0]

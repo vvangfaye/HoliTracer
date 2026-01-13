@@ -8,5 +8,6 @@ class GLHWaterMVTrain(MVTrainDataset):
 class GLHWaterMVInfer(MVInferDataset):
     pass
 
+
 class GLHWaterSVTrain(SVTrainDataset):
     pass

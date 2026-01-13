@@ -11,6 +11,7 @@ from .base import BaseEngine
 from .utils import infer_visual_one_whole_image
 from ..utils.metrics import coco_eval, compute_IoU_cIoU_bIoU, polis_eval
 
+
 class InferImageEngine(BaseEngine):
     def __init__(self, args):
         """Initialize the inference engine.
@@ -20,10 +21,23 @@ class InferImageEngine(BaseEngine):
         """
         super(InferImageEngine, self).__init__(args)
         self.global_step = 0  # Initialize global step counter
-        args_dir = str(args.corner_angle_threshold) + "_" + str(args.d) + "_" + str(args.num_points) + "_" + str(args.corner_threshold)
-        
+        args_dir = (
+            str(args.corner_angle_threshold)
+            + "_"
+            + str(args.d)
+            + "_"
+            + str(args.num_points)
+            + "_"
+            + str(args.corner_threshold)
+        )
+
         self.run_dir = os.path.join(
-            os.getcwd(), self.args.run_dir, self.args.dataset, self.args.model, "infer", args_dir
+            os.getcwd(),
+            self.args.run_dir,
+            self.args.dataset,
+            self.args.model,
+            "infer",
+            args_dir,
         )
 
         os.makedirs(self.run_dir, exist_ok=True)
@@ -34,13 +48,13 @@ class InferImageEngine(BaseEngine):
             format="%(asctime)s - %(levelname)s - %(message)s",
         )
         self.logger = logging.getLogger()
-        
+
         if self.args.rank == 0:
-            # 格式化输出
+            # Format output
             print("Arguments:")
             for key, value in vars(args).items():
                 print(f"    {key}: {value}")
-            # 写入日志
+            # Write log
             self.logger.info("Arguments:")
             for key, value in vars(args).items():
                 self.logger.info(f"    {key}: {value}")
@@ -105,18 +119,18 @@ class InferImageEngine(BaseEngine):
             self.labels_by_image[image_id].append(ann)
 
     def predict(self):
-        """对输入图像执行推理。"""
+        """Execute inference on input images."""
         self.model.eval()
         with torch.no_grad():
-            # 如果是分布式环境，确保同步
+            # If distributed environment, ensure synchronization
             if dist.is_initialized():
                 dist.barrier()
 
-            # 获取图像列表
+            # Get image list
             image_names = self.image_names
             image_folder = self.image_folder
 
-            # 如果是分布式，分割图像列表
+            # If distributed, split image list
             if self.args.distributed:
                 world_size = dist.get_world_size()
                 rank = dist.get_rank()
@@ -128,7 +142,7 @@ class InferImageEngine(BaseEngine):
             for image_idx, image_name in enumerate(
                 tqdm(image_names, desc=f"Inferring (GPU {rank})", ncols=80)
             ):
-                # 推理
+                # Inference
                 try:
                     image_id = self.image_id_map[image_name]
                     if image_id not in self.predictions_by_image:
@@ -155,7 +169,7 @@ class InferImageEngine(BaseEngine):
                         labels,
                     )
                 except Exception as e:
-                    # 显示哪一行出错,并写入日志
+                    # Show which line caused error, and write to log
                     import traceback
 
                     self.logger.error(
@@ -166,16 +180,16 @@ class InferImageEngine(BaseEngine):
                 refined_annotations.extend(one_results)
 
             if self.args.distributed:
-                # 创建一个列表用于存储所有进程的结果
+                # Create a list to store results from all processes
                 output_objects = [None for _ in range(dist.get_world_size())]
 
-                # 收集所有进程的结果
+                # Collect results from all processes
                 dist.barrier()
                 dist.all_gather_object(output_objects, refined_annotations)
 
-                # 在主进程(rank 0)合并结果
+                # Merge results in main process (rank 0)
                 if dist.get_rank() == 0:
-                    # 展平列表
+                    # Flatten list
                     all_results = [
                         item for sublist in output_objects for item in sublist
                     ]
@@ -184,9 +198,9 @@ class InferImageEngine(BaseEngine):
             else:
                 all_results = refined_annotations
 
-            # 保存结果
+            # Save results
             if rank == 0:
-                # 保存结果
+                # Save results
                 coco_dict = {
                     "images": self.coco_predictions["images"],
                     "annotations": all_results,

@@ -12,8 +12,8 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(
             torch.arange(0, embed_dim, 2).float() * (-math.log(10000.0) / embed_dim)
         )
-        pe[:, 0::2] = torch.sin(position * div_term)  # 偶数维度
-        pe[:, 1::2] = torch.cos(position * div_term)  # 奇数维度
+        pe[:, 0::2] = torch.sin(position * div_term)  # Even dimensions
+        pe[:, 1::2] = torch.cos(position * div_term)  # Odd dimensions
         pe = pe.unsqueeze(0)  # (1, max_len, embed_dim)
         self.register_buffer("pe", pe)
 
@@ -44,16 +44,16 @@ class TransformerBlock(nn.Module):
         """
         x: (B, NUM_POINTS, EMBED_DIM)
         """
-        # 转换为 (NUM_POINTS, B, EMBED_DIM) 以适配 nn.MultiheadAttention
+        # Convert to (NUM_POINTS, B, EMBED_DIM) to adapt to nn.MultiheadAttention
         x = x.permute(1, 0, 2)
-        # 自注意力
+        # Self-attention
         attn_output, _ = self.self_attn(x, x, x)
         attn_output = attn_output.permute(1, 0, 2)  # (B, NUM_POINTS, EMBED_DIM)
-        # 残差连接 + 归一化
+        # Residual connection + Normalization
         x = self.norm1(x.permute(1, 0, 2) + self.dropout1(attn_output))
-        # 前馈网络
+        # Feedforward network
         ff_output = self.linear2(self.dropout(self.activation(self.linear1(x))))
-        # 残差连接 + 归一化
+        # Residual connection + Normalization
         x = self.norm2(x + self.dropout2(ff_output))
         return x  # (B, NUM_POINTS, EMBED_DIM)
 
@@ -68,20 +68,20 @@ class FusionLayer(nn.Module):
         """
         states: list of tensors, each of shape (B, NUM_POINTS, EMBED_DIM)
         """
-        # 拼接所有状态
+        # Concatenate all states
         state = torch.cat(states, dim=2)  # (B, NUM_POINTS, EMBED_DIM * num_layers)
-        # 全局最大池化提取全局特征
+        # Global max pooling to extract global features
         global_feat, _ = torch.max(
             state, dim=1, keepdim=True
         )  # (B, 1, EMBED_DIM * num_layers)
         global_feat = global_feat.expand(
             -1, state.size(1), -1
         )  # (B, NUM_POINTS, EMBED_DIM * num_layers)
-        # 拼接全局特征和局部特征
+        # Concatenate global features and local features
         fused = torch.cat(
             [state, global_feat], dim=2
         )  # (B, NUM_POINTS, EMBED_DIM * num_layers * 2)
-        # 通过线性层融合特征
+        # Fuse features through linear layer
         fused = self.fusion_linear(fused)  # (B, NUM_POINTS, fusion_dim)
         fused = self.relu(fused)
         return fused  # (B, NUM_POINTS, fusion_dim)
@@ -122,13 +122,13 @@ class VLROffset(nn.Module):
         self.embed_dim = state_dim
         self.num_layers = num_layers
 
-        # 输入头部：将输入特征转换为状态维度
+        # Input header: convert input features to state dimension
         self.input_linear = nn.Linear(feature_dim, self.embed_dim)
         self.positional_encoding = PositionalEncoding(
             self.embed_dim, max_len=num_points
         )
 
-        # Transformer 块
+        # Transformer blocks
         self.transformer_blocks = nn.ModuleList(
             [
                 TransformerBlock(self.embed_dim, num_heads, dim_feedforward, dropout)
@@ -136,45 +136,45 @@ class VLROffset(nn.Module):
             ]
         )
 
-        # 融合层
+        # Fusion layer
         self.fusion = FusionLayer(self.embed_dim * (num_layers + 1), fusion_dim)
 
-        # 预测层
+        # Prediction layer
         self.prediction = PredictionLayer(fusion_dim, hidden_dim=256, output_dim=2)
 
     def forward(self, x):
         """
         x: (B, NUM_FEATURES, NUM_POINTS)
         """
-        # 转换为 (B, NUM_POINTS, NUM_FEATURES)
+        # Convert to (B, NUM_POINTS, NUM_FEATURES)
         x = x.permute(0, 2, 1)  # (B, NUM_POINTS, NUM_FEATURES)
-        # 输入头部
+        # Input header
         x = self.input_linear(x)  # (B, NUM_POINTS, EMBED_DIM)
-        x = self.positional_encoding(x)  # 添加位置编码
+        x = self.positional_encoding(x)  # Add positional encoding
 
         states = [x]
 
-        # 通过所有 Transformer 块
+        # Pass through all Transformer blocks
         for block in self.transformer_blocks:
             x = block(x)  # (B, NUM_POINTS, EMBED_DIM)
             states.append(x)
 
-        # 融合层
+        # Fusion layer
         fused = self.fusion(states)  # (B, NUM_POINTS, fusion_dim)
 
-        # 预测层
+        # Prediction layer
         prediction = self.prediction(fused)  # (B, NUM_POINTS, 2)
 
         return prediction.permute(0, 2, 1)  # (B, 2, NUM_POINTS)
 
 
 if __name__ == "__main__":
-    # 示例输入
+    # Example input
     batch_size = 8
-    num_features = 128  # 输入特征维度
+    num_features = 128  # Input feature dimension
     num_points = 64
     feature_dim = num_features
-    state_dim = 256  # 与 embed_dim 相同
+    state_dim = 256  # Same as embed_dim
     num_layers = 7
     num_heads = 8
     fusion_dim = 256
@@ -182,12 +182,12 @@ if __name__ == "__main__":
     dropout = 0.1
     max_points = 1024
 
-    # 随机生成输入数据
+    # Randomly generate input data
     x = torch.randn(
         batch_size, num_features, num_points
     )  # (B, NUM_FEATURES, NUM_POINTS)
 
-    # 初始化模型
+    # Initialize model
     model = VLROffset(
         state_dim=state_dim,
         feature_dim=feature_dim,
@@ -199,7 +199,7 @@ if __name__ == "__main__":
         num_points=max_points,
     )
 
-    # 前向传播
+    # Forward propagation
     output = model(x)  # (B, NUM_POINTS, 2)
 
-    print("Output shape:", output.shape)  # 应为 (B, NUM_POINTS, 2)
+    print("Output shape:", output.shape)  # Should be (B, NUM_POINTS, 2)

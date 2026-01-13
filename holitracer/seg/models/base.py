@@ -1,5 +1,6 @@
 # print torch / cuda version
 import torch
+
 print(f"torch version: {torch.__version__}, cuda version: {torch.version.cuda}")
 
 from .backbone.resnet import resnet50, resnet101
@@ -7,13 +8,17 @@ from .backbone.swin_transformer import swin_b, swin_l, swin_b_224
 from torch import nn
 import torch.nn.functional as F
 
+
 class BaseNet(nn.Module):
     def __init__(self, backbone, pretrain):
         super(BaseNet, self).__init__()
-        backbone_zoo = {'resnet50': resnet50, 'resnet101': resnet101,
-                        "swin_b": swin_b,
-                        "swin_l": swin_l,
-                        "swin_b_224": swin_b_224}
+        backbone_zoo = {
+            "resnet50": resnet50,
+            "resnet101": resnet101,
+            "swin_b": swin_b,
+            "swin_l": swin_l,
+            "swin_b_224": swin_b_224,
+        }
         self.backbone = backbone_zoo[backbone](pretrained=pretrain)
 
     def base_forward(self, x):
@@ -37,14 +42,16 @@ class BaseNet(nn.Module):
 
             for scale in scales:
                 cur_h, cur_w = int(h * scale), int(w * scale)
-                cur_x = F.interpolate(x, size=(cur_h, cur_w), mode='bilinear', align_corners=True)
+                cur_x = F.interpolate(
+                    x, size=(cur_h, cur_w), mode="bilinear", align_corners=True
+                )
 
                 out = F.softmax(self.base_forward(cur_x), dim=1)
-                out = F.interpolate(out, (h, w), mode='bilinear', align_corners=True)
+                out = F.interpolate(out, (h, w), mode="bilinear", align_corners=True)
                 final_result = out if final_result is None else (final_result + out)
 
                 out = F.softmax(self.base_forward(cur_x.flip(3)), dim=1).flip(3)
-                out = F.interpolate(out, (h, w), mode='bilinear', align_corners=True)
+                out = F.interpolate(out, (h, w), mode="bilinear", align_corners=True)
                 final_result += out
 
             return final_result

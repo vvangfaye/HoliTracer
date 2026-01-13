@@ -5,7 +5,7 @@ import torch
 from typing import Sequence
 
 
-def normalize_function_mm(img):  # 更快
+def normalize_function_mm(img):
     # Mean values used to pre-training the pre-trained backbone models
     img = np.float32(img) if img.dtype != np.float32 else img.copy()
 

@@ -53,7 +53,7 @@ def load_state_dict(module, state_dict, strict=False, logger=None):
 
     if unexpected_keys:
         err_msg.append(
-            'unexpected key in source ' f'state_dict: {", ".join(unexpected_keys)}\n'
+            "unexpected key in source " f'state_dict: {", ".join(unexpected_keys)}\n'
         )
     if missing_keys:
         err_msg.append(
@@ -141,13 +141,14 @@ def load_checkpoint_mm(model, filename, map_location="cpu", strict=False, logger
     load_state_dict(model, state_dict, strict, logger)
     return checkpoint
 
+
 def load_checkpoint(model, checkpoint_path, strict=True):
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
     # get state_dict from checkpoint
-    if 'state_dict' in checkpoint:
-        state_dict = checkpoint['state_dict']
-    elif 'model' in checkpoint:
-        state_dict = checkpoint['model']
+    if "state_dict" in checkpoint:
+        state_dict = checkpoint["state_dict"]
+    elif "model" in checkpoint:
+        state_dict = checkpoint["model"]
     else:
         state_dict = checkpoint
     model.load_state_dict(state_dict, strict=strict)

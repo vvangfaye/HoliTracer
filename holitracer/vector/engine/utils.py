@@ -6,6 +6,7 @@ import numpy as np
 from shapely.geometry import Polygon
 from shapely.ops import orient
 
+
 def infer_visual_one_whole_image(
     model,
     image_folder,
@@ -22,26 +23,26 @@ def infer_visual_one_whole_image(
     labels=None,
 ):
     """
-    对一张完整的图像进行推理和每个实例的可视化，返回精炼后的预测结果。(考虑多边形的内部孔洞)
+    Perform inference and visualization of each instance on a whole image, returning the refined prediction results. (Considering internal holes of polygons)
 
     Args:
-        model: torch.nn.Module, 模型
-        image_folder: str, 图像文件夹
-        image_name: str, 图像文件名
-        image_id: int, 图像ID(用于COCO格式)
-        predictions: dict, 预测结果
-        labels: dict, 标签结果
-        num_points: int, 点数
-        down_ratio: int, 下采样比例
-        corner_threshold: float, 角点阈值
-        device: torch.device, 设备
+        model: torch.nn.Module, Model
+        image_folder: str, Image folder
+        image_name: str, Image filename
+        image_id: int, Image ID (for COCO format)
+        predictions: dict, Prediction results
+        labels: dict, Label results
+        num_points: int, Number of points
+        down_ratio: int, Downsampling ratio
+        corner_threshold: float, Corner threshold
+        device: torch.device, Device
 
     Returns:
-        list of dict, 精炼后的预测结果
+        list of dict, Refined prediction results
     """
     if visual_save_dir is not None:
         os.makedirs(visual_save_dir, exist_ok=True)
-    # 加载图像
+    # Load image
     image_path = os.path.join(image_folder, image_name)
     image = cv2.imread(image_path)
 
@@ -68,42 +69,44 @@ def infer_visual_one_whole_image(
 
     refined_annotations = []
 
-    # 处理每一个预测
+    # Process each prediction
     for ann_idx, ann in enumerate(predictions):
-        # 获取分割点
+        # Get segmentation points
         segmentation = ann.get("segmentation")
 
         if segmentation is None:
             # print("The segmentation is None.")
             continue
 
-        # 处理分割多边形
-        # 假设'segmentation'是多个多边形的列表，每个多边形是[x1, y1, x2, y2, ..., xn, yn]
+        # Process segmentation polygon
+        # Assume 'segmentation' is a list of multiple polygons, each polygon is [x1, y1, x2, y2, ..., xn, yn]
         polygon = coco_segmentation_to_polygons(segmentation)
 
         if polygon.area < 100:
             continue
-            
-        # 需要考虑转成多个多边形的情况
+
+        # Need to consider converting to multiple polygons
         if polygon.geom_type == "MultiPolygon":
             polygons = list(polygon.geoms)
         else:
             polygons = [polygon]
-        
+
         for poly_num, polygon in enumerate(polygons):
-            
+
             if polygon is None:
                 # print("The polygon is None.")
                 continue
 
-            # dp简化
+            # dp simplification
             simple_polygon = polygon.simplify(5.0, preserve_topology=True)
 
             if simple_polygon is None:
                 # print("The simple polygon is None.")
                 continue
             try:
-                refactored_polygon = interpolate_polygon_by_distance(simple_polygon, d=d)
+                refactored_polygon = interpolate_polygon_by_distance(
+                    simple_polygon, d=d
+                )
             except Exception as e:
                 # print(e)
                 continue
@@ -124,7 +127,9 @@ def infer_visual_one_whole_image(
             if visual:
                 ori_points_list = []
                 exterior_ori_polygon_list = polygon.exterior.coords
-                exterior_ori_polygon_array = np.array(exterior_ori_polygon_list).copy()[:-1]
+                exterior_ori_polygon_array = np.array(exterior_ori_polygon_list).copy()[
+                    :-1
+                ]
                 exterior_ori_points = exterior_ori_polygon_array.reshape(-1, 2)
                 ori_points_list.append(exterior_ori_points)
 
@@ -136,7 +141,9 @@ def infer_visual_one_whole_image(
                             interior_ori_polygon_list
                         ).copy()[:-1]
                         try:
-                            interior_ori_points = interior_ori_polygon_array.reshape(-1, 2)
+                            interior_ori_points = interior_ori_polygon_array.reshape(
+                                -1, 2
+                            )
                         except Exception as e:
                             print(e)
                             continue
@@ -172,9 +179,9 @@ def infer_visual_one_whole_image(
             angle_list = []
             corner_list = []
 
-            exterior_flag = False  # 用于标记外部多边形是否存在
+            exterior_flag = False  # To mark if exterior polygon exists
             for i, refactored_polygon_array in enumerate(refactored_polygon_arrays):
-                # 转换多边形点为numpy数组
+                # Convert polygon points to numpy array
                 # Flatten all points into one array
                 segmentation_points = refactored_polygon_array.reshape(-1, 2)
 
@@ -182,19 +189,19 @@ def infer_visual_one_whole_image(
                     # print("The number of all points is less than 3.")
                     continue
 
-                # 按num_points对分割点进行分组
+                # Group segmentation points by num_points
                 point_groups, valid_counts = group_points_func(
                     segmentation_points, num_points
                 )
 
-                # 收集所有精炼后的点以便合并
+                # Collect all refined points for merging
                 refined_all_groups = []
                 corner_all_groups = []
 
                 for group_idx, (group_points, valid_count) in enumerate(
                     zip(point_groups, valid_counts)
                 ):
-                    # 计算带有重叠的边界框
+                    # Calculate bounding box with overlap
                     x_min = max(int(np.min(group_points[:valid_count, 0])) - 50, 0)
                     x_max = min(
                         int(np.max(group_points[:valid_count, 0])) + 50,
@@ -206,24 +213,24 @@ def infer_visual_one_whole_image(
                         image.shape[0],
                     )
 
-                    # 裁剪图像
+                    # Crop image
                     image_crop = image[y_min:y_max, x_min:x_max, :]
 
-                    # 调整分割点坐标到裁剪后的图像坐标系
+                    # Adjust segmentation point coordinates to cropped image coordinate system
                     adjusted_points = group_points.copy()
                     adjusted_points[:valid_count, 0] -= x_min
                     adjusted_points[:valid_count, 1] -= y_min
 
-                    # 准备模型输入
-                    # 将图像转换为张量并归一化
+                    # Prepare model input
+                    # Convert image to tensor and normalize
                     image_tensor = prepare_image(image_crop, device)
 
-                    # 准备分割点张量
+                    # Prepare segmentation points tensor
                     pred_points_tensor = (
                         torch.from_numpy(adjusted_points).unsqueeze(0).float()
                     )
 
-                    # 准备valid_mask张量
+                    # Prepare valid_mask tensor
                     valid_mask = torch.zeros((1, num_points), dtype=torch.float32).to(
                         device
                     )
@@ -239,30 +246,32 @@ def infer_visual_one_whole_image(
                     pred_points_tensor = pred_points_tensor.to(device)
 
                     try:
-                        # 运行模型
+                        # Run model
                         refined_points, is_corner_logits = model(
                             image_tensor, pred_points_tensor, valid_mask
                         )
 
                         refined_points = refined_points.cpu().numpy()[0]
-                        is_corner_probs = torch.sigmoid(is_corner_logits).cpu().numpy()[0]
+                        is_corner_probs = (
+                            torch.sigmoid(is_corner_logits).cpu().numpy()[0]
+                        )
 
-                        # 只保留有效角点
+                        # Keep only valid corner points
                         refined_points = refined_points[:valid_count, :]
                         is_corner_probs = is_corner_probs[:valid_count]
 
-                        # 处理超出图像边界的点
+                        # Handle points out of image boundaries
                         refined_points[:, 0] = np.clip(refined_points[:, 0], 0, 512)
                         refined_points[:, 1] = np.clip(refined_points[:, 1], 0, 512)
 
-                        # 调整精炼后的点回原始图像坐标系
+                        # Adjust refined points back to original image coordinate system
                         refined_points[:, 0] *= (x_max - x_min) / 512
                         refined_points[:, 1] *= (y_max - y_min) / 512
 
                         refined_points[:, 0] += x_min
                         refined_points[:, 1] += y_min
 
-                        # 收集精炼后的点
+                        # Collect refined points
                         refined_all_groups.append(refined_points)
                         corner_all_groups.append(is_corner_probs)
 
@@ -270,7 +279,7 @@ def infer_visual_one_whole_image(
                         print(e)
                         continue
 
-                # 合并所有组的精炼点
+                # Merge all groups of refined points
                 if refined_all_groups:
                     merged_refined_points, merged_corners, num_merged_points = (
                         restore_group_points(
@@ -281,14 +290,16 @@ def infer_visual_one_whole_image(
                     )
                     angles = compute_polygon_angles(merged_refined_points)
 
-                    # # 选择角点
+                    # # Select corner points
                     is_corner_mask = merged_corners > corner_threshold
                     #
-                    # # 仅保留角点
-                    refined_corner_points = merged_refined_points[is_corner_mask, :].copy()
+                    # # Keep only corner points
+                    refined_corner_points = merged_refined_points[
+                        is_corner_mask, :
+                    ].copy()
                     # refined_corner_points = merged_refined_points.copy()
                     #
-                    # 保留角度小于135度的点
+                    # Keep points with angle less than 135 degrees
                     # angles_mask = angles < (165 / 180 * math.pi)
                     # merged_refined_points = merged_refined_points[angles_mask, :]
 
@@ -304,13 +315,13 @@ def infer_visual_one_whole_image(
                     if i == 0:
                         exterior_flag = True
 
-            # 如果外部多边形不存在，则跳过
+            # If exterior polygon does not exist, skip
             if not exterior_flag:
                 # print("The merged geom exterior polygon does not exist.")
                 continue
 
             if visual and ann_idx in matches:
-                # 保存可视化结果
+                # Save visualization results
                 exterior_refined_points = refined_points_list[0].copy()
 
                 crop_x_min = max(int(np.min(exterior_refined_points[:, 0])) - 50, 0)
@@ -322,8 +333,10 @@ def infer_visual_one_whole_image(
                     int(np.max(exterior_refined_points[:, 1])) + 50, image.shape[0]
                 )
 
-                # 保存可视化结果
-                visual_image_crop = image[crop_y_min:crop_y_max, crop_x_min:crop_x_max, :]
+                # Save visualization results
+                visual_image_crop = image[
+                    crop_y_min:crop_y_max, crop_x_min:crop_x_max, :
+                ]
                 gt_seg = gt_annotations[matches[ann_idx]].get("segmentation")
                 gt_points_trans_list = []
                 for seg in gt_seg:
@@ -368,7 +381,9 @@ def infer_visual_one_whole_image(
                     refined_corner_trans_list.append(refined_corner)
                 try:
                     visualize(
-                        os.path.join(visual_save_dir, image_name[:-4], str(matches[ann_idx])),
+                        os.path.join(
+                            visual_save_dir, image_name[:-4], str(matches[ann_idx])
+                        ),
                         visual_image_crop,
                         gt_points_trans_list,
                         ori_points_trans_list,
@@ -394,7 +409,7 @@ def infer_visual_one_whole_image(
                 #     fps=3
                 # )
 
-            # 计算bbox
+            # Calculate bbox
             x_min = np.min(merged_refined_points[:, 0])
             x_max = np.max(merged_refined_points[:, 0])
             y_min = np.min(merged_refined_points[:, 1])
@@ -402,12 +417,12 @@ def infer_visual_one_whole_image(
             bbox_coco = [x_min, y_min, x_max - x_min, y_max - y_min]
             bbox_coco = [round(float(x), 2) for x in bbox_coco]
 
-            # 将合并后的多边形转换为COCO格式的分割
+            # Convert merged polygon to COCO format segmentation
             refined_segmentation = []
             outer_flag = False
             for i, refined_points in enumerate(refined_corner_list):
                 segmentation = refined_points.flatten().tolist()
-                # 确保多边形有至少三个点
+                # Ensure polygon has at least 3 points
                 if len(segmentation) < 6:
                     # print("The number of all merged points is less than 3.")
                     continue
@@ -418,34 +433,34 @@ def infer_visual_one_whole_image(
             if not outer_flag:
                 # print("The merged coco exterior polygon does not exist.")
                 continue
-            
+
             area = polygon.area
-            
-            # 为每个多边形分配一个唯一的ID
+
+            # Assign a unique ID to each polygon
             refined_idx = ann.get("id", ann_idx) + poly_num * 1000000
-            
+
             merged_result = {
                 "image_id": image_id,
                 "id": ann.get("id", refined_idx),
                 "category_id": ann.get("category_id", 1),
                 "segmentation": refined_segmentation,
                 "bbox": bbox_coco,
-                "score": max(0.9, min(area / (512 * 512), 0.99))
+                "score": max(0.9, min(area / (512 * 512), 0.99)),
             }
             refined_annotations.append(merged_result)
     return refined_annotations
 
 
 def group_points_func(points, group_size):
-    """将点分组为指定大小的组，并返回每组的有效点数。
+    """Groups points into groups of specified size and returns the number of valid points in each group.
 
     Args:
         points: numpy array of shape (N, 2)
-        group_size: int, 每组的点数
+        group_size: int, Number of points per group
 
     Returns:
         list of numpy arrays, each of shape (group_size, 2)
-        list of ints, 每组的有效点数
+        list of ints, Number of valid points per group
     """
     groups = []
     valid_counts = []
@@ -475,12 +490,12 @@ def group_points_func(points, group_size):
 
 
 def restore_group_points(groups, corner_groups, group_size):
-    """将分组的点恢复为单个数组。
+    """Restores grouped points into a single array.
 
     Args:
         groups: list of numpy arrays, each of shape (group_size, 2)
         corner_groups: list of numpy arrays, each of shape (group_size,)
-        group_size: int, 每组的点数
+        group_size: int, Number of points per group
 
     Returns:
         numpy array of shape (N, 2)
@@ -498,7 +513,7 @@ def restore_group_points(groups, corner_groups, group_size):
             overlap = group[:step]
             corners_overlap = corners[:step]
 
-            # 计算重叠部分的平均值
+            # Calculate average of overlapping parts
             overlap_avg = np.mean([restored_points[-step:], overlap], axis=0)
             restored_points = np.vstack(
                 [restored_points[:-step], overlap_avg, group[step:]]
@@ -518,22 +533,22 @@ def restore_group_points(groups, corner_groups, group_size):
 
 def coco_segmentation_to_polygons(segmentation):
     """
-    将COCO格式的segmentation转换为Shapely的Polygon对象列表，考虑内部孔洞。
+    Convert COCO format segmentation to Shapely Polygon object list, considering internal holes.
     """
     if isinstance(segmentation, list):
-        # COCO格式中，segmentation是一个列表，可能包含多个多边形（带孔洞）
-        # 根据索引顺序，第一个多边形为外部轮廓，后续的为内部孔洞
+        # In COCO format, segmentation is a list that may contain multiple polygons (with holes)
+        # According to index order, the first polygon is the outer contour, and subsequent ones are internal holes
         exterior = None
         interiors = []
         for idx, segment in enumerate(segmentation):
             coords = segment
-            # 将坐标转换为点列表
+            # Convert coordinates to a list of points
             ring_coords = [(coords[i], coords[i + 1]) for i in range(0, len(coords), 2)]
             if idx == 0:
-                # 第一个多边形为外部轮廓
+                # The first polygon is the outer contour
                 exterior = ring_coords
             else:
-                # 后续多边形为内部孔洞
+                # Subsequent polygons are internal holes
                 interiors.append(ring_coords)
         if exterior:
             polygon = Polygon(exterior, interiors)
@@ -575,7 +590,7 @@ def interpolate_polygon_by_distance(poly, d):
         interpolated_coords_exterior[0]
     )  # close the polygon
 
-    # 内部框线的插值
+    # Interpolation of internal frames
     interiors = poly.interiors
     interpolated_coords_interiors = None
 
@@ -607,8 +622,8 @@ def interpolate_polygon_by_distance(poly, d):
     )
     if not interpolated_poly.is_valid:
         interpolated_poly = interpolated_poly.buffer(0)
-    # 确保多边形是顺时针方向
-    interpolated_poly = orient(interpolated_poly, sign=-1.0)  # sign=-1.0 表示顺时针
+    # Ensure polygon is clockwise
+    interpolated_poly = orient(interpolated_poly, sign=-1.0)  # sign=-1.0 indicates clockwise
     return interpolated_poly
 
 
@@ -645,7 +660,7 @@ def prepare_image(image, device):
 
 
 def compute_iou(poly1, poly2):
-    """计算两个多边形的IoU值。"""
+    """Calculate IoU value of two polygons."""
     if not poly1.is_valid or not poly2.is_valid:
         return 0
     intersection = poly1.intersection(poly2).area
@@ -658,7 +673,7 @@ def compute_iou(poly1, poly2):
 
 def match_polygons(pred_polygons, gt_polygons, iou_threshold=0.8):
     """
-    匹配预测多边形和真值多边形，返回匹配对的字典。
+    Match predicted polygons and ground truth polygons, returning a dictionary of matched pairs.
     """
     matches = {}
     gt_matched = set()
@@ -669,7 +684,7 @@ def match_polygons(pred_polygons, gt_polygons, iou_threshold=0.8):
         matched_gt_idx = -1
         for j, gt_poly in enumerate(gt_polygons):
             if j in gt_matched or gt_poly is None:
-                continue  # 已匹配的真值多边形不再考虑
+                continue  # Matched ground truth polygons are no longer considered
             iou = compute_iou(pred_poly, gt_poly)
             if iou > max_iou:
                 max_iou = iou
@@ -905,17 +920,18 @@ def visualize(
     # np.save(refined_points_save_path, refined_points_list)
     # np.save(is_corner_probs_save_path, is_corner_probs_list)
     # np.save(angles_save_path, angles_list)
-    
+
+
 def compute_polygon_angles(points):
     """
-    计算多边形每个顶点的夹角（弧度），仅对有效点且其前/后邻均有效时才计算。
-    否则该位置角度为 0。
+    Calculate the angle (radians) of each vertex of the polygon, only calculated for valid points and when their previous/next neighbors are also valid.
+    Otherwise, the angle at that position is 0.
 
     Args:
-        points:     (N, 2)  多边形顶点坐标(若是闭合多边形，做环状索引)
+        points:     (N, 2)  Polygon vertex coordinates (if closed polygon, use circular indexing)
 
     Return:
-        angles:     ( N)     每个点的夹角(0~π)。如果该点或其邻点无效，则输出0。
+        angles:     ( N)     Angle of each point (0~π). If the point or its neighbors are invalid, output 0.
     """
     num_points = points.shape[0]
     angles = np.zeros(num_points)
@@ -936,41 +952,46 @@ def compute_polygon_angles(points):
         angles[i] = np.arccos(np.clip(cos_theta, -1.0, 1.0))
     return angles
 
+
 def counter2poly(contours, hierarchy, index, image_height, image_width):
     """
-    递归构建带空洞的 Polygon 对象。
-    
-    :param contours: 轮廓列表（从 cv2.findContours 获取）
-    :param hierarchy: 轮廓层次结构
-    :param index: 当前轮廓的索引
-    :return: Polygon 对象（可能包含空洞），若失败则返回 None
+    Recursively build Polygon object with holes.
+
+    :param contours: List of contours (obtained from cv2.findContours)
+    :param hierarchy: Contour hierarchy
+    :param index: Index of current contour
+    :return: Polygon object (may contain holes), returns None if failed
     """
     if index < 0 or index >= len(contours):
         return None
-    
-    # 提取当前轮廓并处理 padding
+
+    # Extract current contour and handle padding
     contour = contours[index]
     contour = np.array([c.reshape(-1).tolist() for c in contour])
-    contour -= 1  # 减去填充（padding）
-    contour = clip_by_bound(contour, image_height, image_width)  # 限制轮廓点在图像边界内
-    
+    contour -= 1  # Subtract padding
+    contour = clip_by_bound(
+        contour, image_height, image_width
+    )  # Limit contour points within image boundaries
+
     if len(contour) < 3:
-        return None  # 少于3个点的轮廓无法构成多边形
-    
-    # 获取子轮廓（空洞）
+        return None  # Contour with less than 3 points cannot form a polygon
+
+    # Get child contours (holes)
     intp = []
-    child = hierarchy[0][index][2]  # 第一个子轮廓的索引
+    child = hierarchy[0][index][2]  # Index of the first child contour
     while child != -1:
-        child_poly = build_polygon(contours, hierarchy, child, image_height, image_width)
+        child_poly = build_polygon(
+            contours, hierarchy, child, image_height, image_width
+        )
         if child_poly is not None:
             intp.append(child_poly)
-        child = hierarchy[0][child][0]  # 下一个兄弟轮廓
-    
-    # 创建 Polygon 对象，包含外部轮廓和内部空洞
+        child = hierarchy[0][child][0]  # Next sibling contour
+
+    # Create Polygon object, containing outer contour and inner holes
     try:
         poly = Polygon(contour, [p.exterior.coords for p in intp if p is not None])
     except Exception as e:
-        print(f"构建 Polygon 失败: {e}")
+        print(f"Failed to build Polygon: {e}")
         return None
-    
+
     return poly

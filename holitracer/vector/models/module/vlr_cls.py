@@ -13,8 +13,8 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(
             torch.arange(0, embed_dim, 2).float() * (-math.log(10000.0) / embed_dim)
         )
-        pe[:, 0::2] = torch.sin(position * div_term)  # 偶数维度
-        pe[:, 1::2] = torch.cos(position * div_term)  # 奇数维度
+        pe[:, 0::2] = torch.sin(position * div_term)  # Even dimensions
+        pe[:, 1::2] = torch.cos(position * div_term)  # Odd dimensions
         pe = pe.unsqueeze(0)  # (1, max_len, embed_dim)
         self.register_buffer("pe", pe)
 
@@ -47,24 +47,24 @@ class TransformerBlock(nn.Module):
         """
         B, N, E = x.size()
 
-        # 转换为 (N, B, E) 以适配 nn.MultiheadAttention
+        # Convert to (N, B, E) to adapt to nn.MultiheadAttention
         x_transposed = x.permute(1, 0, 2)  # (N, B, E)
 
-        # 自注意力
+        # Self-attention
         attn_output, _ = self.self_attn(
             x_transposed, x_transposed, x_transposed
         )  # (N, B, E)
         attn_output = attn_output.permute(1, 0, 2)  # (B, N, E)
 
-        # 残差连接 + 归一化
+        # Residual connection + Normalization
         x = self.norm1(x + self.dropout1(attn_output))  # (B, N, E)
 
-        # 前馈网络
+        # Feedforward network
         ff_output = self.linear2(
             self.dropout(self.activation(self.linear1(x)))
         )  # (B, N, E)
 
-        # 残差连接 + 归一化
+        # Residual connection + Normalization
         x = self.norm2(x + self.dropout2(ff_output))  # (B, N, E)
 
         return x  # (B, N, E)
@@ -84,14 +84,14 @@ class VLRCls(nn.Module):
         super(VLRCls, self).__init__()
         self.embed_dim = state_dim
         self.num_points = num_points
-        # embedding 层
-        self.input_linear = nn.Linear(feature_dim, self.embed_dim)  # 输入特征维度为 3
-        # 位置编码
+        # embedding layer
+        self.input_linear = nn.Linear(feature_dim, self.embed_dim)  # Input feature dimension is 3
+        # Positional encoding
         self.positional_encoding = PositionalEncoding(
             self.embed_dim, max_len=num_points
         )
 
-        # 自定义 Transformer 编码器块
+        # Custom Transformer encoder block
         self.transformer_blocks = nn.ModuleList(
             [
                 TransformerBlock(self.embed_dim, num_heads, dim_feedforward, dropout)
@@ -99,31 +99,31 @@ class VLRCls(nn.Module):
             ]
         )
 
-        # 分类头部
+        # Classification head
         self.classifier = nn.Sequential(
             nn.Linear(self.embed_dim, 256),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout),
-            nn.Linear(256, 1),  # 输出一个 logit 代表二分类
+            nn.Linear(256, 1),  # Output a logit representing binary classification
         )
 
     def forward(self, x, valid_mask=None):
         """
         x: (B, E, N)
-        valid_mask: (B, N) 可选，1 表示有效，0 表示无效
+        valid_mask: (B, N) Optional, 1 indicates valid, 0 indicates invalid
         """
         x = x.permute(0, 2, 1)  # (B, N, E)
         B, N, E = x.size()
-        # 输入头部
+        # Input header
         x = self.input_linear(x)
-        # 添加位置编码
+        # Add positional encoding
         x = self.positional_encoding(x)  # (B, N, E)
 
-        # 通过所有自定义 Transformer 编码器块
+        # Pass through all custom Transformer encoder blocks
         for block in self.transformer_blocks:
             x = block(x)  # (B, N, E)
 
-        # 分类头部
+        # Classification head
         logits = self.classifier(x).squeeze(-1)  # (B, N)
 
-        return logits  # 每个点的二分类 logits
+        return logits  # Binary classification logits for each point

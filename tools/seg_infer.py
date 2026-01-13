@@ -12,7 +12,12 @@ setproctitle.setproctitle("python seg_infer.py")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Inference Engine")
-    parser.add_argument("--config", type=str, default='./seg/config/whubuilding_infer.yaml', help="Path to the config file")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="./seg/config/whubuilding_infer.yaml",
+        help="Path to the config file",
+    )
 
     parser.add_argument(
         "--num_workers",
@@ -56,6 +61,7 @@ def parse_args():
     )
     return args
 
+
 def main():
     args = parse_args()
 
@@ -70,6 +76,7 @@ def main():
 
     if args.distributed:
         dist.destroy_process_group()
+
 
 if __name__ == "__main__":
     main()

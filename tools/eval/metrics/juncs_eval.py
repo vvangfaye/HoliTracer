@@ -26,7 +26,6 @@ def evaluate_junctions(input_json, gti_annotations):
     coco = COCO(gti_annotations)
     coco = coco.loadRes(submission_file)
 
-
     image_ids = coco.getImgIds(catIds=coco.getCatIds())
     bar = tqdm(image_ids)
 
@@ -37,21 +36,21 @@ def evaluate_junctions(input_json, gti_annotations):
 
         img = coco.loadImgs(image_id)[0]
 
-        annotation_ids = coco.getAnnIds(imgIds=img['id'])
+        annotation_ids = coco.getAnnIds(imgIds=img["id"])
         annotations = coco.loadAnns(annotation_ids)
-        dts = np.zeros((0,2))
+        dts = np.zeros((0, 2))
         for ann in annotations:
-            juncs = np.array(ann['segmentation'][0]).reshape(-1, 2)
+            juncs = np.array(ann["segmentation"][0]).reshape(-1, 2)
             # juncs = rdp(juncs, 0.125)
             dts = np.append(dts, juncs, axis=0)
 
-        annotation_ids = coco_gti.getAnnIds(imgIds=img['id'])
+        annotation_ids = coco_gti.getAnnIds(imgIds=img["id"])
         annotations = coco_gti.loadAnns(annotation_ids)
-        gts = np.zeros((0,2))
+        gts = np.zeros((0, 2))
         for ann in annotations:
-            juncs = np.array(ann['segmentation'][0]).reshape(-1, 2)
+            juncs = np.array(ann["segmentation"][0]).reshape(-1, 2)
             gts = np.append(gts, juncs[:-1], axis=0)
-        
+
         found = [False] * len(gts)
         per_sample_tp = 0
         per_sample_fp = 0
@@ -60,11 +59,11 @@ def evaluate_junctions(input_json, gti_annotations):
             # get closest gt
             near_gt = [0, 9999999.0, (0.0, 0.0)]
             for k, gt in enumerate(gts):
-                dist = np.linalg.norm(gt-det)
+                dist = np.linalg.norm(gt - det)
                 if dist < near_gt[1]:
-                    near_gt = [k, dist, gt] 
+                    near_gt = [k, dist, gt]
 
-            # hit (<= thresh) and not found yet 
+            # hit (<= thresh) and not found yet
             if near_gt[1] <= thresh and not found[near_gt[0]]:
                 per_sample_tp += 1.0
                 found[near_gt[0]] = True
@@ -85,11 +84,10 @@ def evaluate_junctions(input_json, gti_annotations):
 
     R = tps / num_gts
     P = tps / (tps + fps + 1e-8)
-    F1 = 2.0*P*R/(P+R+1e-8)
+    F1 = 2.0 * P * R / (P + R + 1e-8)
 
-    print('Done!')
-    print('Precision: %2.4f, Recall: %2.4f, F1-score: %2.4f' % (P, R, F1))
-
+    print("Done!")
+    print("Precision: %2.4f, Recall: %2.4f, F1-score: %2.4f" % (P, R, F1))
 
 
 if __name__ == "__main__":
@@ -100,5 +98,4 @@ if __name__ == "__main__":
 
     gt_file = args.gt_file
     dt_file = args.dt_file
-    evaluate_junctions(input_json=dt_file,
-                       gti_annotations=gt_file)
+    evaluate_junctions(input_json=dt_file, gti_annotations=gt_file)

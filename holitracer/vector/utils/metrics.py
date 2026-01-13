@@ -13,6 +13,7 @@ from shapely import geometry
 from shapely.geometry import Polygon
 from multiprocessing import Pool
 
+
 def bounding_box(points):
     """returns a list containing the bottom left and the top right
     points in the sequence
@@ -104,6 +105,7 @@ def evaluate_img_polis(args):
         return 0
     else:
         return img_polis_avg / num_sample
+
 
 class PolisEval:
     def __init__(self, cocoGt=None, cocoDt=None):
@@ -203,6 +205,7 @@ def calc_f1(a, b):
     else:
         return f1
 
+
 # General util function to get the boundary of a binary mask.
 def mask_to_boundary(mask, dilation_ratio=0.02):
     """
@@ -212,7 +215,7 @@ def mask_to_boundary(mask, dilation_ratio=0.02):
     :return: boundary mask (numpy array)
     """
     h, w = mask.shape
-    img_diag = np.sqrt(h ** 2 + w ** 2)
+    img_diag = np.sqrt(h**2 + w**2)
     dilation = int(round(dilation_ratio * img_diag))
     if dilation < 1:
         dilation = 1
@@ -241,6 +244,7 @@ def calc_BoundaryIoU(gt, dt, dilation_ratio=0.02):
     union = ((gt_boundary + dt_boundary) > 0).sum()
     boundary_iou = intersection / union
     return boundary_iou
+
 
 def compute_iou_ciou_for_image(args):
     img, gt_annotations, dt_annotations = args

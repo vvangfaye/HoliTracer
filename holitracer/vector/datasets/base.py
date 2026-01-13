@@ -8,18 +8,18 @@ from PIL import Image
 class HDF5Dataset(Dataset):
     def __init__(self, h5_file_path, down_ratio, transform=None):
         """
-        初始化数据集。
+        Initialize dataset.
 
-        参数：
-        - h5_file_path: HDF5 文件的路径
-        - transform: 图像的变换（可选）
+        Parameters:
+        - h5_file_path: Path to HDF5 file
+        - transform: Image transformation (optional)
         """
         self.h5_file_path = h5_file_path
         self.transform = transform
-        # 打开 HDF5 文件（延迟打开，等到真正读取数据时再打开）
+        # Open HDF5 file (lazy open, open when actually reading data)
         self.h5_file = h5py.File(self.h5_file_path, "r")
         self.down_ratio = down_ratio
-        # 获取样本数量
+        # Get number of samples
         with h5py.File(self.h5_file_path, "r") as h5_file:
             self.total_samples = len(h5_file.keys())
 
@@ -28,20 +28,20 @@ class HDF5Dataset(Dataset):
 
     def __getitem__(self, idx):
         grp = self.h5_file[f"sample_{idx}"]
-        # 读取数据
+        # Read data
         ori_image = grp["image"][()]
         ori_image_wh = ori_image.shape[:2]
         pred_points = grp["pred_points"][()]
         gt_points = grp["gt_points"][()]
         is_corner = grp["is_corner"][()]
         valid_mask = grp["valid_mask"][()]
-        # 转换为张量
-        image = Image.fromarray(ori_image)  # PIL 图像
-        pred_points = torch.from_numpy(pred_points).float()  # 形状为 (L, 2)
-        gt_points = torch.from_numpy(gt_points).float()  # 形状为 (L, 2)
-        is_corner = torch.from_numpy(is_corner).long()  # 形状为 (L,)
+        # Convert to tensor
+        image = Image.fromarray(ori_image)  # PIL Image
+        pred_points = torch.from_numpy(pred_points).float()  # Shape is (L, 2)
+        gt_points = torch.from_numpy(gt_points).float()  # Shape is (L, 2)
+        is_corner = torch.from_numpy(is_corner).long()  # Shape is (L,)
 
-        # 获取self.transform的resize参数
+        # Get resize parameter from self.transform
         resize = None
         for t in self.transform.transforms:
             if isinstance(t, transforms.Resize):
@@ -49,7 +49,7 @@ class HDF5Dataset(Dataset):
                 break
 
         if resize is not None:
-            # 将point位置映射到resize大小的图像上
+            # Map point positions to resized image
             pred_points = (
                 pred_points
                 * torch.tensor(resize).float()
@@ -61,10 +61,10 @@ class HDF5Dataset(Dataset):
                 / torch.tensor(image.size).float()
             )
 
-            # 将point位置映射到downsample大小的图像上
+            # Map point positions to downsampled image
             pred_points = pred_points / self.down_ratio
 
-        # 应用图像变换
+        # Apply image transformation
         if self.transform:
             image = self.transform(image)
 

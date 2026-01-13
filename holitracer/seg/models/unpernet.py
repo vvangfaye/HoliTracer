@@ -16,8 +16,9 @@ from .module.GCM import Global_Context_Module
 
 def conv3x3(in_planes, out_planes, stride=1, has_bias=False):
     # 3x3 convolution with padding
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=has_bias)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=has_bias
+    )
 
 
 def conv3x3_bn_relu(in_planes, out_planes, stride=1):
@@ -30,10 +31,17 @@ def conv3x3_bn_relu(in_planes, out_planes, stride=1):
 
 class UPerNet(BaseNet):
 
-    def __init__(self, backbone, nclass,
-                 pool_scales=(1, 2, 3, 6),
-                 fpn_inplanes=(256, 512, 1024, 2048), fc_dim=4096,
-                 fpn_dim: int = 512, pretrain: bool = False, isContext: bool = False):
+    def __init__(
+        self,
+        backbone,
+        nclass,
+        pool_scales=(1, 2, 3, 6),
+        fpn_inplanes=(256, 512, 1024, 2048),
+        fc_dim=4096,
+        fpn_dim: int = 512,
+        pretrain: bool = False,
+        isContext: bool = False,
+    ):
         super(UPerNet, self).__init__(backbone, pretrain)
         fc_dim = self.backbone.channels[-1]
         fpn_inplanes = self.backbone.channels
@@ -55,30 +63,38 @@ class UPerNet(BaseNet):
             # self.ppm_pooling.append(PrRoIPool2D(scale, scale, 1.))  # TODO
             self.ppm_pooling.append(nn.AdaptiveAvgPool2d(scale))
 
-            self.ppm_conv.append(nn.Sequential(
-                nn.Conv2d(fc_dim, 512, kernel_size=1, bias=False),
-                SynchronizedBatchNorm2d(512),
-                nn.ReLU(inplace=True)
-            ))
+            self.ppm_conv.append(
+                nn.Sequential(
+                    nn.Conv2d(fc_dim, 512, kernel_size=1, bias=False),
+                    SynchronizedBatchNorm2d(512),
+                    nn.ReLU(inplace=True),
+                )
+            )
         self.ppm_pooling = nn.ModuleList(self.ppm_pooling)
         self.ppm_conv = nn.ModuleList(self.ppm_conv)
-        self.ppm_last_conv = conv3x3_bn_relu(fc_dim + len(pool_scales) * 512, fpn_dim, 1)
+        self.ppm_last_conv = conv3x3_bn_relu(
+            fc_dim + len(pool_scales) * 512, fpn_dim, 1
+        )
 
         # FPN Module
         self.fpn_in = []
         for fpn_inplane in fpn_inplanes[:-1]:  # skip the top layer
-            self.fpn_in.append(nn.Sequential(
-                nn.Conv2d(fpn_inplane, fpn_dim, kernel_size=1, bias=False),
-                SynchronizedBatchNorm2d(fpn_dim),
-                nn.ReLU(inplace=True)
-            ))
+            self.fpn_in.append(
+                nn.Sequential(
+                    nn.Conv2d(fpn_inplane, fpn_dim, kernel_size=1, bias=False),
+                    SynchronizedBatchNorm2d(fpn_dim),
+                    nn.ReLU(inplace=True),
+                )
+            )
         self.fpn_in = nn.ModuleList(self.fpn_in)
 
         self.fpn_out = []
         for i in range(len(fpn_inplanes) - 1):  # skip the top layer
-            self.fpn_out.append(nn.Sequential(
-                conv3x3_bn_relu(fpn_dim, fpn_dim, 1),
-            ))
+            self.fpn_out.append(
+                nn.Sequential(
+                    conv3x3_bn_relu(fpn_dim, fpn_dim, 1),
+                )
+            )
         self.fpn_out = nn.ModuleList(self.fpn_out)
 
         self.conv_fusion = conv3x3_bn_relu(len(fpn_inplanes) * fpn_dim, fpn_dim, 1)
@@ -86,7 +102,7 @@ class UPerNet(BaseNet):
         # input: Fusion out, input_dim: fpn_dim
         self.object_head = nn.Sequential(
             conv3x3_bn_relu(fpn_dim, fpn_dim, 1),
-            nn.Conv2d(fpn_dim, self.nclass, kernel_size=1, bias=True)
+            nn.Conv2d(fpn_dim, self.nclass, kernel_size=1, bias=True),
         )
 
     def base_forward0(self, x):
@@ -105,11 +121,17 @@ class UPerNet(BaseNet):
         for pool_scale, pool_conv in zip(self.ppm_pooling, self.ppm_conv):
             # print(pool_conv)
             # print(pool_scale(conv5).shape)
-            ppm_out.append(pool_conv(F.interpolate(
-                # pool_scale(conv5, roi.detach()), #TODO
-                pool_scale(conv5),
-                (input_size[2], input_size[3]),
-                mode='bilinear', align_corners=False)))
+            ppm_out.append(
+                pool_conv(
+                    F.interpolate(
+                        # pool_scale(conv5, roi.detach()), #TODO
+                        pool_scale(conv5),
+                        (input_size[2], input_size[3]),
+                        mode="bilinear",
+                        align_corners=False,
+                    )
+                )
+            )
         # for idx, f in enumerate(ppm_out):
         #     print(idx, f.shape)
         ppm_out = torch.cat(ppm_out, 1)
@@ -121,7 +143,8 @@ class UPerNet(BaseNet):
             conv_x = self.fpn_in[i](conv_x)  # lateral branch
 
             f = F.interpolate(
-                f, size=conv_x.size()[2:], mode='bilinear', align_corners=False)  # top-down branch
+                f, size=conv_x.size()[2:], mode="bilinear", align_corners=False
+            )  # top-down branch
             f = conv_x + f
 
             fpn_feature_list.append(self.fpn_out[i](f))
@@ -130,15 +153,19 @@ class UPerNet(BaseNet):
         output_size = fpn_feature_list[0].size()[2:]
         fusion_list = [fpn_feature_list[0]]
         for i in range(1, len(fpn_feature_list)):
-            fusion_list.append(F.interpolate(
-                fpn_feature_list[i],
-                output_size,
-                mode='bilinear', align_corners=False))
+            fusion_list.append(
+                F.interpolate(
+                    fpn_feature_list[i],
+                    output_size,
+                    mode="bilinear",
+                    align_corners=False,
+                )
+            )
         fusion_out = torch.cat(fusion_list, 1)
         x = self.conv_fusion(fusion_out)
         out = self.object_head(x)
         # print("out::", out.shape)
-        return F.interpolate(out, size=seg_size, mode='bilinear', align_corners=False)
+        return F.interpolate(out, size=seg_size, mode="bilinear", align_corners=False)
 
     def base_forward_context(self, xs):
         x1, x2, x3, save_name = xs
@@ -154,11 +181,17 @@ class UPerNet(BaseNet):
         input_size = conv5.size()
         ppm_out = [conv5]
         for pool_scale, pool_conv in zip(self.ppm_pooling, self.ppm_conv):
-            ppm_out.append(pool_conv(F.interpolate(
-                # pool_scale(conv5, roi.detach()), #TODO
-                pool_scale(conv5),
-                (input_size[2], input_size[3]),
-                mode='bilinear', align_corners=False)))
+            ppm_out.append(
+                pool_conv(
+                    F.interpolate(
+                        # pool_scale(conv5, roi.detach()), #TODO
+                        pool_scale(conv5),
+                        (input_size[2], input_size[3]),
+                        mode="bilinear",
+                        align_corners=False,
+                    )
+                )
+            )
 
         ppm_out = torch.cat(ppm_out, 1)
         f = self.ppm_last_conv(ppm_out)
@@ -169,7 +202,8 @@ class UPerNet(BaseNet):
             conv_x = self.fpn_in[i](conv_x)  # lateral branch
 
             f = F.interpolate(
-                f, size=conv_x.size()[2:], mode='bilinear', align_corners=False)  # top-down branch
+                f, size=conv_x.size()[2:], mode="bilinear", align_corners=False
+            )  # top-down branch
             f = conv_x + f
 
             fpn_feature_list.append(self.fpn_out[i](f))
@@ -178,14 +212,18 @@ class UPerNet(BaseNet):
         output_size = fpn_feature_list[0].size()[2:]
         fusion_list = [fpn_feature_list[0]]
         for i in range(1, len(fpn_feature_list)):
-            fusion_list.append(F.interpolate(
-                fpn_feature_list[i],
-                output_size,
-                mode='bilinear', align_corners=False))
+            fusion_list.append(
+                F.interpolate(
+                    fpn_feature_list[i],
+                    output_size,
+                    mode="bilinear",
+                    align_corners=False,
+                )
+            )
         fusion_out = torch.cat(fusion_list, 1)
         x = self.conv_fusion(fusion_out)
         out = self.object_head(x)
-        return F.interpolate(out, size=seg_size, mode='bilinear', align_corners=False)
+        return F.interpolate(out, size=seg_size, mode="bilinear", align_corners=False)
 
     def base_forward(self, x):
         if self.isContext:

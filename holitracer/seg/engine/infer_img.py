@@ -17,6 +17,7 @@ except ImportError:
 from .base import BaseEngine
 from .utils import normalize_function_mm
 
+
 class InferImageEngine(BaseEngine):
     def __init__(self, args):
         """Initialize the inference engine.
@@ -35,28 +36,26 @@ class InferImageEngine(BaseEngine):
         self.logger = logging.getLogger()
 
         if self.args.rank == 0:
-            # 格式化输出
+            # Format output
             print("Arguments:")
             for key, value in vars(args).items():
                 print(f"    {key}: {value}")
-            # 写入日志
+            # Write log
             self.logger.info("Arguments:")
             for key, value in vars(args).items():
                 self.logger.info(f"    {key}: {value}")
-                
+
         self.model = self._build_model().to(self.device)
         if args.distributed:
             self.model = DDP(
                 self.model, device_ids=[args.local_rank], output_device=args.local_rank
             )
-            
+
         if self.args.resume is not None:
             self.load_resume()
 
         self._build_data()
-        
 
-            
     def _build_model(self):
         """Builds the segmentation model.
 
@@ -75,7 +74,7 @@ class InferImageEngine(BaseEngine):
                 backbone=self.args.backbone,
                 nclass=self.args.nclass,
                 isContext=self.args.isContext,
-                pretrain=False
+                pretrain=False,
             )
         else:
             raise ValueError(f"Invalid segmentation head: {self.args.segHead}")
@@ -120,7 +119,7 @@ class InferImageEngine(BaseEngine):
 
         self.image_names = valid_image_names
         self.image_folder = image_folder
-        
+
     def predict(self):
         if self.args.isContext:
             # self.predict_whole_mv()
@@ -214,23 +213,37 @@ class InferImageEngine(BaseEngine):
                         img3_patch_resized = cv2.resize(
                             img3_patch, (size, size), interpolation=cv2.INTER_LINEAR
                         )
-                        
+
                         # visualization attention map
                         save_name = None
                         if save_name:
                             # save image
-                            if not os.path.exists("./attention_map") :
+                            if not os.path.exists("./attention_map"):
                                 os.makedirs("./attention_map")
-                            cv2.imwrite(f"./attention_map/{save_name}_1.png", img1_patch_resized)
-                            cv2.imwrite(f"./attention_map/{save_name}_2.png", img2_patch_resized)
-                            cv2.imwrite(f"./attention_map/{save_name}_3.png", img3_patch_resized)
+                            cv2.imwrite(
+                                f"./attention_map/{save_name}_1.png", img1_patch_resized
+                            )
+                            cv2.imwrite(
+                                f"./attention_map/{save_name}_2.png", img2_patch_resized
+                            )
+                            cv2.imwrite(
+                                f"./attention_map/{save_name}_3.png", img3_patch_resized
+                            )
 
-                        img1_tensor = normalize_function_mm(img1_patch_resized, self.device)
-                        img2_tensor = normalize_function_mm(img2_patch_resized, self.device)
-                        img3_tensor = normalize_function_mm(img3_patch_resized, self.device)
+                        img1_tensor = normalize_function_mm(
+                            img1_patch_resized, self.device
+                        )
+                        img2_tensor = normalize_function_mm(
+                            img2_patch_resized, self.device
+                        )
+                        img3_tensor = normalize_function_mm(
+                            img3_patch_resized, self.device
+                        )
 
                         # Run the model
-                        outputs = self.model((img1_tensor, img2_tensor, img3_tensor, save_name))
+                        outputs = self.model(
+                            (img1_tensor, img2_tensor, img3_tensor, save_name)
+                        )
                         outputs = (
                             outputs.cpu().detach().numpy()
                         )  # Shape: (1, ncls, h_out, w_out)
@@ -248,7 +261,10 @@ class InferImageEngine(BaseEngine):
                         pred_patch = np.argmax(output_resized, axis=0).astype(np.uint8)
                         pred_patch[pred_patch == 1] = 255
                         if save_name:
-                            cv2.imwrite(f"/home/faye/code/linerefactor/attention/{save_name}_pred.png", pred_patch)
+                            cv2.imwrite(
+                                f"/home/faye/code/linerefactor/attention/{save_name}_pred.png",
+                                pred_patch,
+                            )
 
                         # Add outputs to assembled_output
                         assembled_output[:, i : i + s1, j : j + s1] += output_resized
@@ -275,7 +291,7 @@ class InferImageEngine(BaseEngine):
             # Synchronize processes if distributed
             if dist.is_initialized():
                 dist.barrier()
-                
+
     def predict_whole_sv(self):
         """Performs prediction on input images for single-view models."""
         self.model.eval()
@@ -313,7 +329,7 @@ class InferImageEngine(BaseEngine):
 
                 # Get parameters - Simplified for single view
                 size = self.args.view_size  # e.g., 512
-                s1 = size # Single view size is just view_size
+                s1 = size  # Single view size is just view_size
                 # No downsample factors or padding needed for single view
 
                 # Initialize output arrays
@@ -336,10 +352,11 @@ class InferImageEngine(BaseEngine):
                         # img_patch_resized = cv2.resize(
                         #     img_patch, (size, size), interpolation=cv2.INTER_LINEAR
                         # )
-                        img_patch_resized = img_patch # No resize needed as patch is already 'size' x 'size'
+                        img_patch_resized = img_patch  # No resize needed as patch is already 'size' x 'size'
 
-
-                        img_tensor = normalize_function_mm(img_patch_resized, self.device) # Normalize single image tensor
+                        img_tensor = normalize_function_mm(
+                            img_patch_resized, self.device
+                        )  # Normalize single image tensor
 
                         # Run the model - Pass single image tensor
                         outputs = self.model(img_tensor)
@@ -349,7 +366,9 @@ class InferImageEngine(BaseEngine):
                         outputs = outputs[0]  # Remove batch dimension
 
                         # Resize outputs to s1 size if necessary - Not necessary as output should be aligned with input patch size if model is FCN
-                        output_resized = outputs.transpose(1, 2, 0) # No resize needed if output size is same as input patch size
+                        output_resized = outputs.transpose(
+                            1, 2, 0
+                        )  # No resize needed if output size is same as input patch size
                         # output_resized = cv2.resize(
                         #     outputs.transpose(1, 2, 0),
                         #     (s1, s1),
@@ -358,7 +377,6 @@ class InferImageEngine(BaseEngine):
                         output_resized = output_resized.transpose(
                             2, 0, 1
                         )  # Shape: (ncls, s1, s1)
-
 
                         # Add outputs to assembled_output
                         assembled_output[:, i : i + s1, j : j + s1] += output_resized
@@ -412,7 +430,7 @@ class InferImageEngine(BaseEngine):
                 name, _ = os.path.splitext(image_name)
                 image_path_full = os.path.join(image_folder, image_name)
                 result_path = os.path.join(self.result_dir, f"{name}_pred.tif")
-                
+
                 if os.path.exists(result_path):
                     self.logger.info(f"Skipping {name}, already exists.")
                     continue
@@ -422,11 +440,11 @@ class InferImageEngine(BaseEngine):
                 if dataset is None:
                     print(f"Failed to read TIFF {image_path_full}, skipping.")
                     continue
-                    
+
                 width = dataset.RasterXSize
                 height = dataset.RasterYSize
                 bands = dataset.RasterCount
-                
+
                 # Read image data as numpy array (assuming RGB, 3 bands)
                 image0 = np.zeros((height, width, bands), dtype=np.uint8)
                 for band in range(bands):
@@ -454,22 +472,24 @@ class InferImageEngine(BaseEngine):
                             j = width - s1
 
                         # Extract patch
-                        img_patch = image0[i:i + s1, j:j + s1, :]
+                        img_patch = image0[i : i + s1, j : j + s1, :]
 
                         # Prepare tensor
                         img_tensor = normalize_function_mm(img_patch, self.device)
 
                         # Run the model
                         outputs = self.model(img_tensor)
-                        outputs = outputs.cpu().numpy()[0]  # Shape: (ncls, h_out, w_out)
+                        outputs = outputs.cpu().numpy()[
+                            0
+                        ]  # Shape: (ncls, h_out, w_out)
 
                         # Transpose outputs
                         output_resized = outputs.transpose(1, 2, 0)
                         output_resized = output_resized.transpose(2, 0, 1)
 
                         # Add outputs to assembled_output
-                        assembled_output[:, i:i + s1, j:j + s1] += output_resized
-                        count[i:i + s1, j:j + s1] += 1
+                        assembled_output[:, i : i + s1, j : j + s1] += output_resized
+                        count[i : i + s1, j : j + s1] += 1
 
                 # Avoid division by zero
                 count[count == 0] = 1
@@ -482,24 +502,24 @@ class InferImageEngine(BaseEngine):
                 pred[pred == 1] = 255  # Example mapping
 
                 # Save prediction as GeoTIFF
-                driver = gdal.GetDriverByName('GTiff')
+                driver = gdal.GetDriverByName("GTiff")
                 out_dataset = driver.Create(
                     result_path,
                     width,
                     height,
                     1,  # Single band for prediction
-                    gdal.GDT_Byte  # Assuming 8-bit prediction output
+                    gdal.GDT_Byte,  # Assuming 8-bit prediction output
                 )
-                
+
                 # Set geotransform and projection
                 out_dataset.SetGeoTransform(geotransform)
                 out_dataset.SetProjection(projection)
-                
+
                 # Write prediction data
                 out_band = out_dataset.GetRasterBand(1)
                 out_band.WriteArray(pred)
                 out_band.FlushCache()
-                
+
                 # Clean up
                 out_dataset = None
                 dataset = None
@@ -538,7 +558,7 @@ class InferImageEngine(BaseEngine):
                 name, _ = os.path.splitext(image_name)
                 image_path_full = os.path.join(image_folder, image_name)
                 result_path = os.path.join(self.result_dir, f"{name}_pred.tif")
-                
+
                 if os.path.exists(result_path):
                     self.logger.info(f"Skipping {name}, already exists.")
                     continue
@@ -548,11 +568,11 @@ class InferImageEngine(BaseEngine):
                 if dataset is None:
                     print(f"Failed to read TIFF {image_path_full}, skipping.")
                     continue
-                    
+
                 width = dataset.RasterXSize
                 height = dataset.RasterYSize
                 bands = dataset.RasterCount
-                
+
                 # Read image data as numpy array
                 image0 = np.zeros((height, width, bands), dtype=np.uint8)
                 for band in range(bands):
@@ -593,13 +613,13 @@ class InferImageEngine(BaseEngine):
                             j = width - s1
 
                         # Extract patches at different scales
-                        img1_patch = image0[i:i + s1, j:j + s1, :]
+                        img1_patch = image0[i : i + s1, j : j + s1, :]
                         img2_patch = image_padded[
-                            i + delta23:i + delta23 + s2,
-                            j + delta23:j + delta23 + s2,
+                            i + delta23 : i + delta23 + s2,
+                            j + delta23 : j + delta23 + s2,
                             :,
                         ]
-                        img3_patch = image_padded[i:i + s3, j:j + s3, :]
+                        img3_patch = image_padded[i : i + s3, j : j + s3, :]
 
                         # Resize patches to the desired size
                         img1_patch_resized = cv2.resize(
@@ -613,13 +633,23 @@ class InferImageEngine(BaseEngine):
                         )
 
                         # Prepare tensors
-                        img1_tensor = normalize_function_mm(img1_patch_resized, self.device)
-                        img2_tensor = normalize_function_mm(img2_patch_resized, self.device)
-                        img3_tensor = normalize_function_mm(img3_patch_resized, self.device)
+                        img1_tensor = normalize_function_mm(
+                            img1_patch_resized, self.device
+                        )
+                        img2_tensor = normalize_function_mm(
+                            img2_patch_resized, self.device
+                        )
+                        img3_tensor = normalize_function_mm(
+                            img3_patch_resized, self.device
+                        )
 
                         # Run the model
-                        outputs = self.model((img1_tensor, img2_tensor, img3_tensor, None))
-                        outputs = outputs.cpu().numpy()[0]  # Shape: (ncls, h_out, w_out)
+                        outputs = self.model(
+                            (img1_tensor, img2_tensor, img3_tensor, None)
+                        )
+                        outputs = outputs.cpu().numpy()[
+                            0
+                        ]  # Shape: (ncls, h_out, w_out)
 
                         # Resize outputs
                         output_resized = cv2.resize(
@@ -630,8 +660,8 @@ class InferImageEngine(BaseEngine):
                         output_resized = output_resized.transpose(2, 0, 1)
 
                         # Add outputs to assembled_output
-                        assembled_output[:, i:i + s1, j:j + s1] += output_resized
-                        count[i:i + s1, j:j + s1] += 1
+                        assembled_output[:, i : i + s1, j : j + s1] += output_resized
+                        count[i : i + s1, j : j + s1] += 1
 
                 # Avoid division by zero
                 count[count == 0] = 1
@@ -644,24 +674,24 @@ class InferImageEngine(BaseEngine):
                 pred[pred == 1] = 255  # Example mapping
 
                 # Save prediction as GeoTIFF
-                driver = gdal.GetDriverByName('GTiff')
+                driver = gdal.GetDriverByName("GTiff")
                 out_dataset = driver.Create(
                     result_path,
                     width,
                     height,
                     1,  # Single band for prediction
-                    gdal.GDT_Byte  # Adjust if needed
+                    gdal.GDT_Byte,  # Adjust if needed
                 )
-                
+
                 # Set geotransform and projection
                 out_dataset.SetGeoTransform(geotransform)
                 out_dataset.SetProjection(projection)
-                
+
                 # Write prediction data
                 out_band = out_dataset.GetRasterBand(1)
                 out_band.WriteArray(pred)
                 out_band.FlushCache()
-                
+
                 # Clean up
                 out_dataset = None
                 dataset = None
@@ -673,4 +703,3 @@ class InferImageEngine(BaseEngine):
             # Synchronize processes if distributed
             if dist.is_initialized():
                 dist.barrier()
-                

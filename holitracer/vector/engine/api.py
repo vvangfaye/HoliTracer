@@ -3,7 +3,13 @@ import os
 import torch
 import numpy as np
 from tqdm import tqdm
-from .utils import prepare_image, group_points_func, restore_group_points, interpolate_polygon_by_distance, compute_polygon_angles
+from .utils import (
+    prepare_image,
+    group_points_func,
+    restore_group_points,
+    interpolate_polygon_by_distance,
+    compute_polygon_angles,
+)
 
 
 def vector_predict_api(
@@ -16,42 +22,46 @@ def vector_predict_api(
     corner_threshold=0.1,
     device="cuda",
 ):
-    # 加载图像
+    # Load image
     image = cv2.imread(image_path)
     if image is None:
         return []
     refined_annotations = []
 
-    # 处理每一个预测
-    for poly_num, polygon in enumerate(tqdm(polys, desc="Processing vectorization", total=len(polys))):
+    # Process each prediction
+    for poly_num, polygon in enumerate(
+        tqdm(polys, desc="Processing vectorization", total=len(polys))
+    ):
         if polygon is None:
             # print("The segmentation is None.")
             continue
 
-        # fliter small polygons
+        # filter small polygons
         if polygon.area < 100:
             continue
-            
-        # 需要考虑转成多个多边形的情况
+
+        # Need to consider converting to multiple polygons
         if polygon.geom_type == "MultiPolygon":
             polygons = list(polygon.geoms)
         else:
             polygons = [polygon]
-        
+
         for poly_num, polygon in enumerate(polygons):
-            
+
             if polygon is None:
                 # print("The polygon is None.")
                 continue
 
-            # dp简化
+            # dp simplification
             simple_polygon = polygon.simplify(5.0, preserve_topology=True)
 
             if simple_polygon is None:
                 # print("The simple polygon is None.")
                 continue
             try:
-                refactored_polygon = interpolate_polygon_by_distance(simple_polygon, d=d)
+                refactored_polygon = interpolate_polygon_by_distance(
+                    simple_polygon, d=d
+                )
             except Exception as e:
                 # print(e)
                 continue
@@ -101,9 +111,9 @@ def vector_predict_api(
             angle_list = []
             corner_list = []
 
-            exterior_flag = False  # 用于标记外部多边形是否存在
+            exterior_flag = False  # To mark if exterior polygon exists
             for i, refactored_polygon_array in enumerate(refactored_polygon_arrays):
-                # 转换多边形点为numpy数组
+                # Convert polygon points to numpy array
                 # Flatten all points into one array
                 segmentation_points = refactored_polygon_array.reshape(-1, 2)
 
@@ -111,19 +121,19 @@ def vector_predict_api(
                     # print("The number of all points is less than 3.")
                     continue
 
-                # 按num_points对分割点进行分组
+                # Group segmentation points by num_points
                 point_groups, valid_counts = group_points_func(
                     segmentation_points, num_points
                 )
 
-                # 收集所有精炼后的点以便合并
+                # Collect all refined points for merging
                 refined_all_groups = []
                 corner_all_groups = []
 
                 for group_idx, (group_points, valid_count) in enumerate(
                     zip(point_groups, valid_counts)
                 ):
-                    # 计算带有重叠的边界框
+                    # Calculate bounding box with overlap
                     x_min = max(int(np.min(group_points[:valid_count, 0])) - 50, 0)
                     x_max = min(
                         int(np.max(group_points[:valid_count, 0])) + 50,
@@ -135,24 +145,24 @@ def vector_predict_api(
                         image.shape[0],
                     )
 
-                    # 裁剪图像
+                    # Crop image
                     image_crop = image[y_min:y_max, x_min:x_max, :]
 
-                    # 调整分割点坐标到裁剪后的图像坐标系
+                    # Adjust segmentation point coordinates to cropped image coordinate system
                     adjusted_points = group_points.copy()
                     adjusted_points[:valid_count, 0] -= x_min
                     adjusted_points[:valid_count, 1] -= y_min
 
-                    # 准备模型输入
-                    # 将图像转换为张量并归一化
+                    # Prepare model input
+                    # Convert image to tensor and normalize
                     image_tensor = prepare_image(image_crop, device)
 
-                    # 准备分割点张量
+                    # Prepare segmentation points tensor
                     pred_points_tensor = (
                         torch.from_numpy(adjusted_points).unsqueeze(0).float()
                     )
 
-                    # 准备valid_mask张量
+                    # Prepare valid_mask tensor
                     valid_mask = torch.zeros((1, num_points), dtype=torch.float32).to(
                         device
                     )
@@ -168,30 +178,32 @@ def vector_predict_api(
                     pred_points_tensor = pred_points_tensor.to(device)
 
                     try:
-                        # 运行模型
+                        # Run model
                         refined_points, is_corner_logits = model(
                             image_tensor, pred_points_tensor, valid_mask
                         )
 
                         refined_points = refined_points.cpu().detach().numpy()[0]
-                        is_corner_probs = torch.sigmoid(is_corner_logits).cpu().detach().numpy()[0]
+                        is_corner_probs = (
+                            torch.sigmoid(is_corner_logits).cpu().detach().numpy()[0]
+                        )
 
-                        # 只保留有效角点
+                        # Keep only valid corner points
                         refined_points = refined_points[:valid_count, :]
                         is_corner_probs = is_corner_probs[:valid_count]
 
-                        # 处理超出图像边界的点
+                        # Handle points out of image boundaries
                         refined_points[:, 0] = np.clip(refined_points[:, 0], 0, 512)
                         refined_points[:, 1] = np.clip(refined_points[:, 1], 0, 512)
 
-                        # 调整精炼后的点回原始图像坐标系
+                        # Adjust refined points back to original image coordinate system
                         refined_points[:, 0] *= (x_max - x_min) / 512
                         refined_points[:, 1] *= (y_max - y_min) / 512
 
                         refined_points[:, 0] += x_min
                         refined_points[:, 1] += y_min
 
-                        # 收集精炼后的点
+                        # Collect refined points
                         refined_all_groups.append(refined_points)
                         corner_all_groups.append(is_corner_probs)
 
@@ -199,7 +211,7 @@ def vector_predict_api(
                         print(e)
                         continue
 
-                # 合并所有组的精炼点
+                # Merge all groups of refined points
                 if refined_all_groups:
                     merged_refined_points, merged_corners, num_merged_points = (
                         restore_group_points(
@@ -210,14 +222,16 @@ def vector_predict_api(
                     )
                     angles = compute_polygon_angles(merged_refined_points)
 
-                    # # 选择角点
+                    # # Select corner points
                     is_corner_mask = merged_corners > corner_threshold
                     #
-                    # # 仅保留角点
-                    refined_corner_points = merged_refined_points[is_corner_mask, :].copy()
+                    # # Keep only corner points
+                    refined_corner_points = merged_refined_points[
+                        is_corner_mask, :
+                    ].copy()
                     # refined_corner_points = merged_refined_points.copy()
                     #
-                    # 保留角度小于135度的点
+                    # Keep points with angle less than 135 degrees
                     # angles_mask = angles < (165 / 180 * math.pi)
                     # merged_refined_points = merged_refined_points[angles_mask, :]
 
@@ -233,12 +247,12 @@ def vector_predict_api(
                     if i == 0:
                         exterior_flag = True
 
-            # 如果外部多边形不存在，则跳过
+            # If exterior polygon does not exist, skip
             if not exterior_flag:
                 # print("The merged geom exterior polygon does not exist.")
                 continue
 
-            # 计算bbox
+            # Calculate bbox
             x_min = np.min(merged_refined_points[:, 0])
             x_max = np.max(merged_refined_points[:, 0])
             y_min = np.min(merged_refined_points[:, 1])
@@ -246,12 +260,12 @@ def vector_predict_api(
             bbox_coco = [x_min, y_min, x_max - x_min, y_max - y_min]
             bbox_coco = [round(float(x), 2) for x in bbox_coco]
 
-            # 将合并后的多边形转换为COCO格式的分割
+            # Convert merged polygon to COCO format segmentation
             refined_segmentation = []
             outer_flag = False
             for i, refined_points in enumerate(refined_corner_list):
                 segmentation = refined_points.flatten().tolist()
-                # 确保多边形有至少三个点
+                # Ensure polygon has at least 3 points
                 if len(segmentation) < 6:
                     # print("The number of all merged points is less than 3.")
                     continue
@@ -262,19 +276,19 @@ def vector_predict_api(
             if not outer_flag:
                 # print("The merged coco exterior polygon does not exist.")
                 continue
-            
+
             area = polygon.area
-            
+
             merged_result = {
                 "id": poly_num,
                 "image_id": 0,
                 "category_id": 1,
                 "segmentation": refined_segmentation,
                 "bbox": bbox_coco,
-                "score": max(0.9, min(area / (512 * 512), 0.99))
+                "score": max(0.9, min(area / (512 * 512), 0.99)),
             }
             refined_annotations.append(merged_result)
-            
+
     images_info = {
         "file_name": os.path.basename(image_path),
         "height": image.shape[0],

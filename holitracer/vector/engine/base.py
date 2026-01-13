@@ -16,7 +16,6 @@ class BaseEngine:
         self.args = args
         # print args on rank 0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
 
         self.model = self._build_model().to(self.device)
 
@@ -67,7 +66,7 @@ class BaseEngine:
                 num_points=self.args.num_points,
                 backbone_path=self.args.backbone_path,
                 vlr_num=4,
-                down_ratio=self.args.down_ratio
+                down_ratio=self.args.down_ratio,
             )
         else:
             raise ValueError(f"Invalid model: {self.args.model}")

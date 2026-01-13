@@ -13,13 +13,13 @@ import argparse
 
 
 def load_coco_annotations(coco_file):
-    """加载COCO格式的注释文件，按图像ID分组。"""
+    """Load COCO format annotation file, grouped by image ID."""
     with open(coco_file, "r") as f:
         coco_data = json.load(f)
     annotations = coco_data["annotations"]
     images = coco_data.get("images", [])
     image_info = {img["id"]: img for img in images}
-    # 按照image_id分组注释
+    # Group annotations by image_id
     annotations_by_image = {}
     for ann in annotations:
         image_id = ann["image_id"]
@@ -34,36 +34,36 @@ def load_coco_annotations(coco_file):
 
 def coco_segmentation_to_polygons(segmentation):
     """
-    将COCO格式的segmentation转换为Shapely的Polygon对象列表，考虑内部孔洞。
+    Convert COCO format segmentation to a list of Shapely Polygon objects, considering internal holes.
     """
     polygons = []
     if isinstance(segmentation, list):
-        # COCO格式中，segmentation是一个列表，可能包含多个多边形（带孔洞）
-        # 根据索引顺序，第一个多边形为外部轮廓，后续的为内部孔洞
+        # In COCO format, segmentation is a list that may contain multiple polygons (with holes)
+        # According to index order, the first polygon is the outer contour, and subsequent ones are internal holes
         exterior = None
         interiors = []
         for idx, segment in enumerate(segmentation):
             coords = segment
-            # 将坐标转换为点列表
+            # Convert coordinates to a list of points
             ring_coords = [(coords[i], coords[i + 1]) for i in range(0, len(coords), 2)]
             if idx == 0:
-                # 第一个多边形为外部轮廓
+                # The first polygon is the outer contour
                 exterior = ring_coords
             else:
-                # 后续多边形为内部孔洞
+                # Subsequent polygons are internal holes
                 interiors.append(ring_coords)
         if exterior:
             polygon = Polygon(exterior, interiors)
             if polygon.is_valid:
                 polygons.append(polygon)
     else:
-        # 处理RLE格式或其他情况
+        # Handle RLE format or other cases
         pass
     return polygons
 
 
 def compute_iou(poly1, poly2):
-    """计算两个多边形的IoU值。"""
+    """Calculate IoU value of two polygons."""
     if not poly1.is_valid or not poly2.is_valid:
         return 0
     intersection = poly1.intersection(poly2).area
@@ -76,7 +76,7 @@ def compute_iou(poly1, poly2):
 
 def match_polygons(pred_polygons, gt_polygons, iou_threshold=0.8):
     """
-    匹配预测多边形和真值多边形，返回匹配对的字典。
+    Match predicted polygons and ground truth polygons, returning a dictionary of matched pairs.
     """
     matches = {}
     gt_matched = set()
@@ -85,7 +85,7 @@ def match_polygons(pred_polygons, gt_polygons, iou_threshold=0.8):
         matched_gt_idx = -1
         for j, gt_poly in enumerate(gt_polygons):
             if j in gt_matched:
-                continue  # 已匹配的真值多边形不再考虑
+                continue  # Matched ground truth polygons are no longer considered
             iou = compute_iou(pred_poly, gt_poly)
             if iou > max_iou:
                 max_iou = iou
@@ -124,8 +124,8 @@ def interpolate_polygon_by_distance(poly, d):
     interpolated_poly = Polygon(interpolated_coords)
     if not interpolated_poly.is_valid:
         interpolated_poly = interpolated_poly.buffer(0)
-    # 确保多边形是顺时针方向
-    interpolated_poly = orient(interpolated_poly, sign=-1.0)  # sign=-1.0 表示顺时针
+    # Ensure the polygon is in clockwise direction
+    interpolated_poly = orient(interpolated_poly, sign=-1.0)  # sign=-1.0 indicates clockwise
     return interpolated_poly
 
 
@@ -145,16 +145,16 @@ def rotate_polygon_to_start_at(pred_coords, start_idx):
 
 def modified_match_points(pred_poly, gt_poly, d):
     """
-    使用线性顺序匹配的完整流程：
-    1. 对Pred多边形差值。
-    2. 找到与GT第一个点最接近的Pred点作为起始点
-    3. 从第一个GT点开始，沿Pred点顺序匹配后续GT点，保证一对一、顺序不乱。
-    4. 完成匹配后，对每对匹配点之间的GT点进行插值，保证Pred和GT之间的点数一致。
+    Complete process using linear sequence matching:
+    1. Interpolate Pred polygon.
+    2. Find the Pred point closest to the first GT point as the starting point
+    3. Starting from the first GT point, match subsequent GT points along the Pred point order, ensuring one-to-one and orderly matching.
+    4. After matching is complete, interpolate GT points between each pair of matched points to ensure consistent number of points between Pred and GT.
     """
-    pred_poly = orient(pred_poly, sign=-1.0)  # 确保Pred多边形是顺时针方向
-    gt_poly = orient(gt_poly, sign=-1.0)  # 确保GT多边形是顺时针方向
+    pred_poly = orient(pred_poly, sign=-1.0)  # Ensure Pred polygon is in clockwise direction
+    gt_poly = orient(gt_poly, sign=-1.0)  # Ensure GT polygon is in clockwise direction
 
-    # Step 1: 对Pred多边形插值
+    # Step 1: Interpolate Pred polygon
     interpolated_pred_poly = interpolate_polygon_by_distance(pred_poly, d)
     pred_coords = list(interpolated_pred_poly.exterior.coords)[:-1]
     gt_coords_original = list(gt_poly.exterior.coords)[:-1]
@@ -167,31 +167,31 @@ def modified_match_points(pred_poly, gt_poly, d):
     if N_pred == 0 or M_gt == 0 or N_pred < M_gt:
         return [], [], []
 
-    # Step 2: 找到与GT[0]最近的Pred点作为起始点
+    # Step 2: Find the Pred point closest to GT[0] as the starting point
     first_gt_point = gt_array[0]
     distances_to_first_gt = np.linalg.norm(pred_array - first_gt_point, axis=1)
     closest_pred_idx = np.argmin(distances_to_first_gt)
 
-    # 旋转Pred使closest_pred_idx为起点
+    # Rotate Pred so that closest_pred_idx is the starting point
     rotated_pred_coords = rotate_polygon_to_start_at(pred_coords, closest_pred_idx)
     rotated_pred_array = np.array(rotated_pred_coords)
 
     ordered_pred_coords = rotated_pred_coords
     ordered_pred_array = rotated_pred_array
 
-    # Step 3: 基于顺序的线性匹配
-    # GT[0] 已由起始点选择决定匹配到 Pred[0]
+    # Step 3: Sequence-based linear matching
+    # GT[0] is already determined to match Pred[0] by starting point selection
     matched_pred_indices = [0]
     matched_gt_indices = [0]
     is_vertex_flags = [True]
 
     current_pred_idx = 0
 
-    # 依次匹配GT[1...M_gt-1]
+    # Sequentially match GT[1...M_gt-1]
     for gt_idx in range(1, M_gt):
         gt_pt = gt_array[gt_idx]
         if current_pred_idx + 1 >= len(ordered_pred_array):
-            # 没有更多Pred点可匹配
+            # No more Pred points to match
             break
 
         candidate_pred_points = ordered_pred_array[current_pred_idx + 1 :]
@@ -201,32 +201,32 @@ def modified_match_points(pred_poly, gt_poly, d):
 
         matched_pred_indices.append(chosen_pred_idx)
         matched_gt_indices.append(gt_idx)
-        is_vertex_flags.append(True)  # 原始GT顶点
+        is_vertex_flags.append(True)  # Original GT vertex
 
         current_pred_idx = chosen_pred_idx
         if current_pred_idx == len(ordered_pred_array) - 1:
             break
 
-    # Step 4: 处理闭合段
-    # 确保从最后一个匹配点回到第一个匹配点
+    # Step 4: Handle closing segment
+    # Ensure returning from the last matched point to the first matched point
     if len(matched_pred_indices) >= 2 and len(matched_gt_indices) >= 2:
         last_pred_idx = matched_pred_indices[-1]
         first_pred_idx = matched_pred_indices[0]
 
         if first_pred_idx != last_pred_idx:
-            # 计算闭合段的剩余点数
+            # Calculate remaining points in the closing segment
             remaining = first_pred_idx - last_pred_idx - 1
             if remaining < 0:
                 remaining += len(ordered_pred_coords)
 
             matched_pred_indices.append(first_pred_idx)
-            matched_gt_indices.append(0)  # 闭合回第一个GT点
+            matched_gt_indices.append(0)  # Close back to the first GT point
             is_vertex_flags.append(True)
 
-    # 根据匹配到的索引获取坐标
+    # Get coordinates based on matched indices
     matched_gt_points = [gt_coords_original[i] for i in matched_gt_indices]
 
-    # Step 5: 计算每对匹配点之间的剩余Pred点数
+    # Step 5: Calculate remaining Pred points between each pair of matched points
     remaining_pred_points_between = []
     num_matched = len(matched_pred_indices) - 1
     for i in range(num_matched):
@@ -237,7 +237,7 @@ def modified_match_points(pred_poly, gt_poly, d):
             remaining += len(ordered_pred_coords)
         remaining_pred_points_between.append(remaining)
 
-    # Step 6: 对GT点进行插值
+    # Step 6: Interpolate GT points
     interpolated_gt_points = []
     interpolated_is_vertex = []
     for i in range(len(matched_gt_indices) - 1):
@@ -248,11 +248,11 @@ def modified_match_points(pred_poly, gt_poly, d):
         if num_pred_remaining <= 0:
             continue
 
-        # 提取GT段
+        # Extract GT segment
         if end_g > start_g:
             gt_segment = gt_coords_original[start_g : end_g + 1]
         else:
-            # 闭合段，跨越起点
+            # Closing segment, crossing the starting point
             gt_segment = gt_coords_original[start_g:] + gt_coords_original[: end_g + 1]
 
         gt_segment_line = LineString(gt_segment)
@@ -264,7 +264,7 @@ def modified_match_points(pred_poly, gt_poly, d):
             interpolated_gt_points.append((point.x, point.y))
             interpolated_is_vertex.append(False)
 
-    # Step 7: 整合最终的GT点序列
+    # Step 7: Integrate final GT point sequence
     final_gt_points = []
     final_is_vertex = []
     gt_idx_pointer = 0
@@ -273,17 +273,17 @@ def modified_match_points(pred_poly, gt_poly, d):
         final_gt_points.append(matched_gt_points[i])
         final_is_vertex.append(is_vertex_flags[i])
 
-        # 添加插值点
+        # Add interpolation points
         num_pred_remaining = remaining_pred_points_between[i]
         for j in range(num_pred_remaining):
             final_gt_points.append(interpolated_gt_points[gt_idx_pointer])
             final_is_vertex.append(interpolated_is_vertex[gt_idx_pointer])
             gt_idx_pointer += 1
 
-    # Step 8: 确保Pred和GT的点数一致
+    # Step 8: Ensure consistent number of points between Pred and GT
     assert len(final_gt_points) == len(ordered_pred_coords)
 
-    # # 计算平均距离
+    # # Calculate average distance
     # total_distance = 0
     # for i in range(len(final_gt_points)):
     #     pred_pt = ordered_pred_coords[i]
@@ -294,7 +294,7 @@ def modified_match_points(pred_poly, gt_poly, d):
     # if avg_distance > d:
     #     return [], [], []
 
-    # 返回最终匹配结果
+    # Return final matching result
     return final_gt_points, ordered_pred_coords, final_is_vertex
 
 
@@ -480,7 +480,7 @@ def process_matches(
                 end_idx = start_idx + L
                 valid_num_points = 0
                 if end_idx > num_points and num_points < L:
-                    # If less than L points, 补齐
+                    # If less than L points, pad
                     if start_idx != 0:
                         continue
                     pred_pts_segment = pred_coords[start_idx:] + [(0, 0)] * (
@@ -504,7 +504,7 @@ def process_matches(
                     gt_pts_segment = gt_coords[start_idx:end_idx]
                     is_corner_segment = is_vertexs[start_idx:end_idx]
                     valid_num_points = L
-                # 计算平均距离
+                # Calculate average distance
                 total_distance = 0
                 for i in range(len(gt_pts_segment)):
                     pred_pt = pred_pts_segment[i]
@@ -670,25 +670,47 @@ def process_matches(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Process COCO annotations and generate training data in HDF5 format.")
-    
+    parser = argparse.ArgumentParser(
+        description="Process COCO annotations and generate training data in HDF5 format."
+    )
+
     # Define command-line arguments
-    parser.add_argument('--pred_coco_file', type=str,
-                        help="Path to the prediction COCO JSON file")
-    parser.add_argument('--gt_coco_file', type=str,
-                        help="Path to the ground truth COCO JSON file")
-    parser.add_argument('--image_dir', type=str, default=None,
-                        help="Path to the image directory (optional, default: None)")
-    parser.add_argument('-d', '--interpolation_distance', type=int, default=25,
-                        help="Interpolation distance d (default: 25)")
-    parser.add_argument('-L', '--sampling_size', type=int, default=32,
-                        help="Sampling size L (default: 32)")
-    parser.add_argument('-F', '--sliding_step', type=int, default=4,
-                        help="Sliding step F (default: 4)")
-    parser.add_argument('--output_file', type=str,
-                        help="Path to the output HDF5 file")
-    parser.add_argument('--process_num', type=int, default=40,
-                        help="Number of processes for parallel processing (default: 40)")
+    parser.add_argument(
+        "--pred_coco_file", type=str, help="Path to the prediction COCO JSON file"
+    )
+    parser.add_argument(
+        "--gt_coco_file", type=str, help="Path to the ground truth COCO JSON file"
+    )
+    parser.add_argument(
+        "--image_dir",
+        type=str,
+        default=None,
+        help="Path to the image directory (optional, default: None)",
+    )
+    parser.add_argument(
+        "-d",
+        "--interpolation_distance",
+        type=int,
+        default=25,
+        help="Interpolation distance d (default: 25)",
+    )
+    parser.add_argument(
+        "-L",
+        "--sampling_size",
+        type=int,
+        default=32,
+        help="Sampling size L (default: 32)",
+    )
+    parser.add_argument(
+        "-F", "--sliding_step", type=int, default=4, help="Sliding step F (default: 4)"
+    )
+    parser.add_argument("--output_file", type=str, help="Path to the output HDF5 file")
+    parser.add_argument(
+        "--process_num",
+        type=int,
+        default=40,
+        help="Number of processes for parallel processing (default: 40)",
+    )
 
     return parser.parse_args()
 
@@ -700,11 +722,11 @@ if __name__ == "__main__":
     pred_coco_file = args.pred_coco_file
     gt_coco_file = args.gt_coco_file
     image_dir = args.image_dir
-    
+
     # If image_dir is explicitly set to None or not provided and not defaulted
     if args.image_dir == "None":
         image_dir = None
-    
+
     # Output file path
     output_file = args.output_file
 
@@ -717,7 +739,10 @@ if __name__ == "__main__":
     # Use command-line arguments
     d = args.interpolation_distance
     all_matches = process_annotations(
-        pred_annotations_by_image, gt_annotations_by_image, process_num=args.process_num, d=d
+        pred_annotations_by_image,
+        gt_annotations_by_image,
+        process_num=args.process_num,
+        d=d,
     )
 
     # Build training dataset and save as HDF5 file
@@ -730,4 +755,4 @@ if __name__ == "__main__":
             all_matches, gt_image_info, image_dir, L, F, h5_file, d, f"./visual_match"
         )
 
-    print(f"共生成了 {total_samples} 条训练数据，并保存到 {h5_filename}")
+    print(f"Generated {total_samples} training data items and saved to {h5_filename}")

@@ -4,13 +4,24 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 import torch.multiprocessing as mp
-import rasterio # Still useful for reading TIFs robustly into memory
+import rasterio  # Still useful for reading TIFs robustly into memory
 
 from .utils import normalize_function_mm
 
-def worker(gpu_id, positions, model_state_dict, model_class,
-           image0, image_padded, # Pass NumPy arrays instead of path
-           view_size, downsample_factors, nclass, height, width):
+
+def worker(
+    gpu_id,
+    positions,
+    model_state_dict,
+    model_class,
+    image0,
+    image_padded,  # Pass NumPy arrays instead of path
+    view_size,
+    downsample_factors,
+    nclass,
+    height,
+    width,
+):
     """
     Worker function that processes patches from pre-loaded image arrays.
 
@@ -40,11 +51,15 @@ def worker(gpu_id, positions, model_state_dict, model_class,
     s2 = d2 * size
     s3 = d3 * size
     # These offsets are relative to the *padded* image's coordinate system
-    pad_size = (s3 - s1) // 2 # Amount of padding on each side
-    delta23 = (s3 - s2) // 2 # Offset for s2 patch relative to s3 patch top-left in padded
+    pad_size = (s3 - s1) // 2  # Amount of padding on each side
+    delta23 = (
+        s3 - s2
+    ) // 2  # Offset for s2 patch relative to s3 patch top-left in padded
 
     # Create model instance and load state dict
-    model = model_class(backbone='swin_l', nclass=nclass, isContext=True, pretrain=False) # Example init
+    model = model_class(
+        backbone="swin_l", nclass=nclass, isContext=True, pretrain=False
+    )  # Example init
     model.load_state_dict(model_state_dict)
     model.to(device)
     model.eval()
@@ -57,10 +72,12 @@ def worker(gpu_id, positions, model_state_dict, model_class,
     # --- No file opening needed here, process directly from passed arrays ---
     try:
         with torch.no_grad():
-            for (i, j) in tqdm(positions,
-                              desc=f"GPU {gpu_id} Processing",
-                              total=len(positions),
-                              leave=False):
+            for i, j in tqdm(
+                positions,
+                desc=f"GPU {gpu_id} Processing",
+                total=len(positions),
+                leave=False,
+            ):
 
                 # --- Extract patches using NumPy slicing from in-memory arrays ---
                 # Note: Slicing is relative to the top-left (0,0) of the respective arrays.
@@ -75,21 +92,25 @@ def worker(gpu_id, positions, model_state_dict, model_class,
                 img3_patch = image_padded[i : i + s3, j : j + s3, :]
 
                 # Extract img2 (s2 x s2) starting offset by delta23 within the s3 window
-                img2_patch = image_padded[i + delta23 : i + delta23 + s2,
-                                          j + delta23 : j + delta23 + s2, :]
+                img2_patch = image_padded[
+                    i + delta23 : i + delta23 + s2, j + delta23 : j + delta23 + s2, :
+                ]
 
                 # --- Resize, Normalize, Predict (Same as before) ---
 
                 # Check if patches are valid (e.g., if slicing resulted in empty array near edges)
                 if img1_patch.size == 0 or img2_patch.size == 0 or img3_patch.size == 0:
-                     print(f"Warning: Skipping empty patch at ({i}, {j})")
-                     continue
+                    print(f"Warning: Skipping empty patch at ({i}, {j})")
+                    continue
 
                 # Ensure patches have 3 dimensions (H, W, C)
                 # (This check might be less necessary if image0 is guaranteed HWC)
-                if img1_patch.ndim == 2: img1_patch = np.expand_dims(img1_patch, axis=-1)
-                if img2_patch.ndim == 2: img2_patch = np.expand_dims(img2_patch, axis=-1)
-                if img3_patch.ndim == 2: img3_patch = np.expand_dims(img3_patch, axis=-1)
+                if img1_patch.ndim == 2:
+                    img1_patch = np.expand_dims(img1_patch, axis=-1)
+                if img2_patch.ndim == 2:
+                    img2_patch = np.expand_dims(img2_patch, axis=-1)
+                if img3_patch.ndim == 2:
+                    img3_patch = np.expand_dims(img3_patch, axis=-1)
                 # Handle grayscale to 3-channel if necessary (check image0.shape[-1])
                 # num_channels = image0.shape[-1]
                 # if num_channels == 1 and model.input_channels == 3: # Example check
@@ -98,13 +119,22 @@ def worker(gpu_id, positions, model_state_dict, model_class,
                 #      img3_patch = np.repeat(img3_patch, 3, axis=-1)
 
                 # Resize patches
-                img1_patch_resized = cv2.resize(img1_patch, (size, size), interpolation=cv2.INTER_LINEAR)
-                img2_patch_resized = cv2.resize(img2_patch, (size, size), interpolation=cv2.INTER_LINEAR)
-                img3_patch_resized = cv2.resize(img3_patch, (size, size), interpolation=cv2.INTER_LINEAR)
-                 # Ensure resized patches also have 3 dims if needed after resize
-                if img1_patch_resized.ndim == 2: img1_patch_resized = np.expand_dims(img1_patch_resized, axis=-1)
-                if img2_patch_resized.ndim == 2: img2_patch_resized = np.expand_dims(img2_patch_resized, axis=-1)
-                if img3_patch_resized.ndim == 2: img3_patch_resized = np.expand_dims(img3_patch_resized, axis=-1)
+                img1_patch_resized = cv2.resize(
+                    img1_patch, (size, size), interpolation=cv2.INTER_LINEAR
+                )
+                img2_patch_resized = cv2.resize(
+                    img2_patch, (size, size), interpolation=cv2.INTER_LINEAR
+                )
+                img3_patch_resized = cv2.resize(
+                    img3_patch, (size, size), interpolation=cv2.INTER_LINEAR
+                )
+                # Ensure resized patches also have 3 dims if needed after resize
+                if img1_patch_resized.ndim == 2:
+                    img1_patch_resized = np.expand_dims(img1_patch_resized, axis=-1)
+                if img2_patch_resized.ndim == 2:
+                    img2_patch_resized = np.expand_dims(img2_patch_resized, axis=-1)
+                if img3_patch_resized.ndim == 2:
+                    img3_patch_resized = np.expand_dims(img3_patch_resized, axis=-1)
 
                 # Normalize and convert to tensor
                 img1_tensor = normalize_function_mm(img1_patch_resized, device)
@@ -113,17 +143,19 @@ def worker(gpu_id, positions, model_state_dict, model_class,
 
                 # Run model
                 outputs = model((img1_tensor, img2_tensor, img3_tensor, None))
-                outputs = outputs.cpu().numpy()[0] # Shape: (ncls, h_out, w_out)
+                outputs = outputs.cpu().numpy()[0]  # Shape: (ncls, h_out, w_out)
 
                 # Resize output back to s1 size
                 output_resized = cv2.resize(
-                    outputs.transpose(1, 2, 0), # (h, w, ncls) for resize
+                    outputs.transpose(1, 2, 0),  # (h, w, ncls) for resize
                     (s1, s1),
-                    interpolation=cv2.INTER_LINEAR
+                    interpolation=cv2.INTER_LINEAR,
                 )
                 if output_resized.ndim == 2:
-                   output_resized = np.expand_dims(output_resized, axis=-1)
-                output_resized = output_resized.transpose(2, 0, 1) # Back to (ncls, h, w)
+                    output_resized = np.expand_dims(output_resized, axis=-1)
+                output_resized = output_resized.transpose(
+                    2, 0, 1
+                )  # Back to (ncls, h, w)
 
                 # Accumulate results
                 h_slice = slice(i, min(i + s1, height))
@@ -131,14 +163,18 @@ def worker(gpu_id, positions, model_state_dict, model_class,
                 h_out_slice = slice(0, h_slice.stop - h_slice.start)
                 w_out_slice = slice(0, w_slice.stop - w_slice.start)
 
-                assembled_output_gpu[:, h_slice, w_slice] += output_resized[:, h_out_slice, w_out_slice]
+                assembled_output_gpu[:, h_slice, w_slice] += output_resized[
+                    :, h_out_slice, w_out_slice
+                ]
                 count_gpu[h_slice, w_slice] += 1
 
     except Exception as e:
         print(f"Error in worker {gpu_id}: {e}")
         # Return empty arrays or raise exception
         # Ensure shape matches expected return format
-        return np.zeros((nclass, height, width), dtype=np.float32), np.zeros((height, width), dtype=np.float32)
+        return np.zeros((nclass, height, width), dtype=np.float32), np.zeros(
+            (height, width), dtype=np.float32
+        )
 
     return assembled_output_gpu, count_gpu
 
@@ -151,7 +187,7 @@ def seg_geo_predict_api(
     view_size=512,
     downsample_factors=(1, 3, 6),
     nclass=2,
-    device="cuda", # Only used for single-GPU mode fallback
+    device="cuda",  # Only used for single-GPU mode fallback
     num_gpus=1,
 ):
     """
@@ -172,16 +208,16 @@ def seg_geo_predict_api(
         tuple: (result_path, pred) - Path to saved mask and the prediction mask.
                Returns (None, None) on failure.
     """
-    print("\n" + "="*30)
+    print("\n" + "=" * 30)
     print(" WARNING: Running in 'load-to-memory' mode.")
     print(" This will load the entire image into RAM.")
     print(" Use the previous version for large images (> RAM).")
-    print("="*30 + "\n")
+    print("=" * 30 + "\n")
 
     os.makedirs(result_dir, exist_ok=True)
     name, _ = os.path.splitext(os.path.basename(image_path))
     # Decide output format (TIF preserves geo-info, PNG is common)
-    save_as_tif = True # Set to False to save as PNG
+    save_as_tif = True  # Set to False to save as PNG
     result_filename = f"{name}.tif" if save_as_tif else f"{name}.png"
     result_path = os.path.join(result_dir, result_filename)
 
@@ -198,18 +234,22 @@ def seg_geo_predict_api(
         print(f"Loading image {image_path} into memory...")
         # Use rasterio to read robustly, then transpose
         with rasterio.open(image_path) as src:
-            image0 = src.read() # Reads as (bands, height, width)
-             # Transpose to (height, width, bands) common for image processing
+            image0 = src.read()  # Reads as (bands, height, width)
+            # Transpose to (height, width, bands) common for image processing
             if image0.ndim == 3:
-                 image0 = image0.transpose(1, 2, 0)
-            elif image0.ndim == 2: # Handle grayscale case
-                 image0 = np.expand_dims(image0, axis=-1) # Add channel dim -> (H, W, 1)
+                image0 = image0.transpose(1, 2, 0)
+            elif image0.ndim == 2:  # Handle grayscale case
+                image0 = np.expand_dims(image0, axis=-1)  # Add channel dim -> (H, W, 1)
             else:
-                 raise ValueError(f"Unexpected number of dimensions in image: {image0.ndim}")
+                raise ValueError(
+                    f"Unexpected number of dimensions in image: {image0.ndim}"
+                )
 
             height, width = src.height, src.width
-            src_profile = src.profile # Keep metadata for saving output
-            print(f"Image loaded: {src_profile['width']}x{src_profile['height']} with {src_profile['count']} bands.")
+            src_profile = src.profile  # Keep metadata for saving output
+            print(
+                f"Image loaded: {src_profile['width']}x{src_profile['height']} with {src_profile['count']} bands."
+            )
 
         # Calculate padding size (based on largest scale s3)
         size = view_size
@@ -229,12 +269,14 @@ def seg_geo_predict_api(
         print(f"Padded image shape: {image_padded.shape}")
 
     except MemoryError:
-         print("\n" + "*"*40)
-         print(f"FATAL: MemoryError occurred while loading or padding {image_path}.")
-         print(f"The image is too large to fit into RAM ({image0.nbytes / 1e9:.2f} GB approx for raw image).")
-         print("Please use the previous version of the code that uses windowed reading.")
-         print("*"*40 + "\n")
-         return None, None
+        print("\n" + "*" * 40)
+        print(f"FATAL: MemoryError occurred while loading or padding {image_path}.")
+        print(
+            f"The image is too large to fit into RAM ({image0.nbytes / 1e9:.2f} GB approx for raw image)."
+        )
+        print("Please use the previous version of the code that uses windowed reading.")
+        print("*" * 40 + "\n")
+        return None, None
     except rasterio.RasterioIOError as e:
         print(f"Error opening image {image_path} with rasterio: {e}")
         return None, None
@@ -244,20 +286,23 @@ def seg_geo_predict_api(
 
     # --- Calculate Patch Sizes and Step ---
     # (s1, s2, s3 are calculated above and in worker)
-    step = s1 // 2 # 50% overlap
+    step = s1 // 2  # 50% overlap
 
     # --- Generate Patch Positions (Same as before) ---
     positions = []
     for i in range(0, height, step):
-        if i + s1 > height: i = max(0, height - s1)
+        if i + s1 > height:
+            i = max(0, height - s1)
         for j in range(0, width, step):
-            if j + s1 > width: j = max(0, width - s1)
+            if j + s1 > width:
+                j = max(0, width - s1)
             positions.append((i, j))
-        if i == max(0, height - s1): break # Break after processing the potentially adjusted last row
+        if i == max(0, height - s1):
+            break  # Break after processing the potentially adjusted last row
     positions = sorted(list(set(positions)))
     if not positions:
-         print(f"Error: No valid positions generated.")
-         return None, None
+        print(f"Error: No valid positions generated.")
+        return None, None
     print(f"Total positions to process: {len(positions)}")
 
     # --- Initialize Full Output Arrays (Still requires memory) ---
@@ -265,7 +310,9 @@ def seg_geo_predict_api(
         assembled_output = np.zeros((nclass, height, width), dtype=np.float32)
         count = np.zeros((height, width), dtype=np.float32)
     except MemoryError:
-        print(f"Error: Not enough RAM to allocate full output arrays ({nclass}x{height}x{width} float32).")
+        print(
+            f"Error: Not enough RAM to allocate full output arrays ({nclass}x{height}x{width} float32)."
+        )
         # No easy fallback here if the output itself is too large
         return None, None
 
@@ -278,16 +325,16 @@ def seg_geo_predict_api(
 
     if actual_num_gpus > 1 and len(positions) > actual_num_gpus:
         print(f"Using {actual_num_gpus} GPUs for processing.")
-        model.cpu() # Move model to CPU before getting state dict
+        model.cpu()  # Move model to CPU before getting state dict
         model_state_dict = model.state_dict()
         model_class = type(model)
 
         positions_split = np.array_split(positions, actual_num_gpus)
 
         try:
-             mp.set_start_method('spawn', force=True)
+            mp.set_start_method("spawn", force=True)
         except RuntimeError as e:
-             print(f"Note: Could not set multiprocessing start method to 'spawn'. ({e})")
+            print(f"Note: Could not set multiprocessing start method to 'spawn'. ({e})")
 
         # --- Pass loaded image arrays to workers ---
         # WARNING: Passing large arrays can be slow/memory intensive depending on backend.
@@ -295,10 +342,22 @@ def seg_geo_predict_api(
         with mp.Pool(processes=actual_num_gpus) as pool:
             results = pool.starmap(
                 worker,
-                [(gpu_id, pos.tolist(), model_state_dict, model_class,
-                  image0, image_padded, # Pass the actual data
-                  view_size, downsample_factors, nclass, height, width)
-                 for gpu_id, pos in enumerate(positions_split)]
+                [
+                    (
+                        gpu_id,
+                        pos.tolist(),
+                        model_state_dict,
+                        model_class,
+                        image0,
+                        image_padded,  # Pass the actual data
+                        view_size,
+                        downsample_factors,
+                        nclass,
+                        height,
+                        width,
+                    )
+                    for gpu_id, pos in enumerate(positions_split)
+                ],
             )
         print("Aggregating results from GPU processes...")
         # Aggregate results
@@ -310,7 +369,8 @@ def seg_geo_predict_api(
         # Single GPU processing
         print(f"Using single GPU: {device}")
         target_device = torch.device(device if torch.cuda.is_available() else "cpu")
-        if str(target_device) == "cpu": print("Warning: CUDA not available, using CPU.")
+        if str(target_device) == "cpu":
+            print("Warning: CUDA not available, using CPU.")
         model.to(target_device)
         model.eval()
 
@@ -325,39 +385,71 @@ def seg_geo_predict_api(
 
         try:
             with torch.no_grad():
-                for (i, j) in tqdm(positions, desc="Single GPU Processing", total=len(positions)):
+                for i, j in tqdm(
+                    positions, desc="Single GPU Processing", total=len(positions)
+                ):
                     # --- Patch extraction using NumPy slicing ---
                     img1_patch = image0[i : i + s1, j : j + s1, :]
                     img3_patch = image_padded[i : i + s3, j : j + s3, :]
-                    img2_patch = image_padded[i + delta23 : i + delta23 + s2,
-                                              j + delta23 : j + delta23 + s2, :]
+                    img2_patch = image_padded[
+                        i + delta23 : i + delta23 + s2,
+                        j + delta23 : j + delta23 + s2,
+                        :,
+                    ]
 
-                    if img1_patch.size == 0 or img2_patch.size == 0 or img3_patch.size == 0: continue
+                    if (
+                        img1_patch.size == 0
+                        or img2_patch.size == 0
+                        or img3_patch.size == 0
+                    ):
+                        continue
 
                     # --- Resize, Normalize, Predict ---
-                    if img1_patch.ndim == 2: img1_patch = np.expand_dims(img1_patch, axis=-1)
-                    if img2_patch.ndim == 2: img2_patch = np.expand_dims(img2_patch, axis=-1)
-                    if img3_patch.ndim == 2: img3_patch = np.expand_dims(img3_patch, axis=-1)
+                    if img1_patch.ndim == 2:
+                        img1_patch = np.expand_dims(img1_patch, axis=-1)
+                    if img2_patch.ndim == 2:
+                        img2_patch = np.expand_dims(img2_patch, axis=-1)
+                    if img3_patch.ndim == 2:
+                        img3_patch = np.expand_dims(img3_patch, axis=-1)
                     # Grayscale handling if needed...
 
-                    img1_patch_resized = cv2.resize(img1_patch, (size, size), interpolation=cv2.INTER_LINEAR)
-                    img2_patch_resized = cv2.resize(img2_patch, (size, size), interpolation=cv2.INTER_LINEAR)
-                    img3_patch_resized = cv2.resize(img3_patch, (size, size), interpolation=cv2.INTER_LINEAR)
+                    img1_patch_resized = cv2.resize(
+                        img1_patch, (size, size), interpolation=cv2.INTER_LINEAR
+                    )
+                    img2_patch_resized = cv2.resize(
+                        img2_patch, (size, size), interpolation=cv2.INTER_LINEAR
+                    )
+                    img3_patch_resized = cv2.resize(
+                        img3_patch, (size, size), interpolation=cv2.INTER_LINEAR
+                    )
 
-                    if img1_patch_resized.ndim == 2: img1_patch_resized = np.expand_dims(img1_patch_resized, axis=-1)
-                    if img2_patch_resized.ndim == 2: img2_patch_resized = np.expand_dims(img2_patch_resized, axis=-1)
-                    if img3_patch_resized.ndim == 2: img3_patch_resized = np.expand_dims(img3_patch_resized, axis=-1)
+                    if img1_patch_resized.ndim == 2:
+                        img1_patch_resized = np.expand_dims(img1_patch_resized, axis=-1)
+                    if img2_patch_resized.ndim == 2:
+                        img2_patch_resized = np.expand_dims(img2_patch_resized, axis=-1)
+                    if img3_patch_resized.ndim == 2:
+                        img3_patch_resized = np.expand_dims(img3_patch_resized, axis=-1)
 
-                    img1_tensor = normalize_function_mm(img1_patch_resized, target_device)
-                    img2_tensor = normalize_function_mm(img2_patch_resized, target_device)
-                    img3_tensor = normalize_function_mm(img3_patch_resized, target_device)
+                    img1_tensor = normalize_function_mm(
+                        img1_patch_resized, target_device
+                    )
+                    img2_tensor = normalize_function_mm(
+                        img2_patch_resized, target_device
+                    )
+                    img3_tensor = normalize_function_mm(
+                        img3_patch_resized, target_device
+                    )
 
                     outputs = model((img1_tensor, img2_tensor, img3_tensor, None))
                     outputs = outputs.cpu().numpy()[0]
 
-                    output_resized = cv2.resize(outputs.transpose(1, 2, 0), (s1, s1), interpolation=cv2.INTER_LINEAR)
+                    output_resized = cv2.resize(
+                        outputs.transpose(1, 2, 0),
+                        (s1, s1),
+                        interpolation=cv2.INTER_LINEAR,
+                    )
                     if output_resized.ndim == 2:
-                       output_resized = np.expand_dims(output_resized, axis=-1)
+                        output_resized = np.expand_dims(output_resized, axis=-1)
                     output_resized = output_resized.transpose(2, 0, 1)
 
                     # --- Accumulate results ---
@@ -366,7 +458,9 @@ def seg_geo_predict_api(
                     h_out_slice = slice(0, h_slice.stop - h_slice.start)
                     w_out_slice = slice(0, w_slice.stop - w_slice.start)
 
-                    assembled_output[:, h_slice, w_slice] += output_resized[:, h_out_slice, w_out_slice]
+                    assembled_output[:, h_slice, w_slice] += output_resized[
+                        :, h_out_slice, w_out_slice
+                    ]
                     count[h_slice, w_slice] += 1
         except Exception as e:
             print(f"Error during single GPU processing: {e}")
@@ -379,26 +473,28 @@ def seg_geo_predict_api(
     count[count == 0] = 1
     assembled_output /= count
     pred = np.argmax(assembled_output, axis=0).astype(np.uint8)
-    pred[pred == 1] = 255 # Remap class 1 to 255 for visualization
+    pred[pred == 1] = 255  # Remap class 1 to 255 for visualization
 
     # --- Save Result ---
     print(f"Saving prediction mask to {result_path}...")
     try:
         if save_as_tif:
-            profile = src_profile # Use profile loaded earlier
-            profile.update(dtype=rasterio.uint8, count=1, nodata=0) # Update for output
-            profile['compress'] = 'lzw' # Optional compression
-            with rasterio.open(result_path, 'w', **profile) as dst:
+            profile = src_profile  # Use profile loaded earlier
+            profile.update(dtype=rasterio.uint8, count=1, nodata=0)  # Update for output
+            profile["compress"] = "lzw"  # Optional compression
+            with rasterio.open(result_path, "w", **profile) as dst:
                 dst.write(pred, 1)
-        else: # Save as PNG
-             # Check if prediction is grayscale or needs conversion
+        else:  # Save as PNG
+            # Check if prediction is grayscale or needs conversion
             if pred.ndim == 3 and pred.shape[-1] == 1:
-                 pred_save = pred[:, :, 0] # Select first channel if it's (H, W, 1)
+                pred_save = pred[:, :, 0]  # Select first channel if it's (H, W, 1)
             elif pred.ndim == 2:
-                 pred_save = pred # Already (H, W)
+                pred_save = pred  # Already (H, W)
             else:
-                 print(f"Warning: Prediction has unexpected shape {pred.shape} for PNG saving. Attempting anyway.")
-                 pred_save = pred # May fail if not HxW or HxWx1/3/4
+                print(
+                    f"Warning: Prediction has unexpected shape {pred.shape} for PNG saving. Attempting anyway."
+                )
+                pred_save = pred  # May fail if not HxW or HxWx1/3/4
 
             cv2.imwrite(result_path, pred_save)
 
@@ -412,7 +508,7 @@ def seg_geo_predict_api(
 
     # --- Clean Up ---
     print("Cleaning up large arrays...")
-    del assembled_output, count, image0, image_padded # Explicitly delete large arrays
+    del assembled_output, count, image0, image_padded  # Explicitly delete large arrays
 
     print("Processing complete.")
     return result_path, pred

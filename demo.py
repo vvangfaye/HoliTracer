@@ -14,22 +14,23 @@ from holitracer.vector.engine import vector_predict_api
 from holitracer.seg.models.unpernet import UPerNet
 from holitracer.vector.models.base import VLRAsModel
 
+
 def process_image(image_path, result_dir, seg_model, vector_model, downsample_factors):
-    
+
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
-        
+
     # segmentation
     result_path, mask = seg_predict_api(
-                                    model=seg_model,
-                                    image_path=image_path,
-                                    result_dir=result_dir,
-                                    downsample_factors=downsample_factors,
-                                    num_gpus=4,
-                                )
+        model=seg_model,
+        image_path=image_path,
+        result_dir=result_dir,
+        downsample_factors=downsample_factors,
+        num_gpus=4,
+    )
     if mask is None:
         return
-    
+
     # trans2coco
     polys = []
     _, mask = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
@@ -46,12 +47,12 @@ def process_image(image_path, result_dir, seg_model, vector_model, downsample_fa
         contours, hierarchy = cv2.findContours(
             padded_binary_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS
         )
-        
+
         poly = build_polygon(contours, hierarchy, 0, image_height, image_width)
         if poly is None:
             continue
         polys.append(poly)
-        
+
     # vectorization
     refined_annotations = vector_predict_api(
         model=vector_model,
@@ -59,40 +60,33 @@ def process_image(image_path, result_dir, seg_model, vector_model, downsample_fa
         polys=polys,
         d=25,
     )
-    
+
     return refined_annotations
+
 
 if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
     # Load models
-    seg_model = UPerNet(
-        backbone='swin_l',
-        nclass=2,
-        isContext=True,
-        pretrain=False
-    )
+    seg_model = UPerNet(backbone="swin_l", nclass=2, isContext=True, pretrain=False)
     seg_model_path = "./data/models/whubuilding/seg/best_model.pth"
     seg_model.load_state_dict(torch.load(seg_model_path))
     seg_model.cuda()
     seg_model.eval()
 
-    vector_model = VLRAsModel(
-        num_points=32,
-        backbone_path=seg_model_path,
-        vlr_num=4
-    )
+    vector_model = VLRAsModel(num_points=32, backbone_path=seg_model_path, vlr_num=4)
     vector_model_path = "./data/models/whubuilding/vector/best_model.pth"
     vector_model.load_state_dict(torch.load(vector_model_path))
     vector_model.cuda()
     vector_model.eval()
 
-
     image_path = "./data/datasets/WHU_building_dataset/test/img/150000_220000.jpg"
-    coco_result = process_image(image_path, "./data/results", seg_model, vector_model, [1, 3, 6])
+    coco_result = process_image(
+        image_path, "./data/results", seg_model, vector_model, [1, 3, 6]
+    )
     json.dump(coco_result, open("./data/results/150000_220000.json", "w"), indent=4)
     # visualize
     visualize_coco_segmentation(
         image_path=image_path,
         json_path="./data/results/150000_220000.json",
-        save_dir="./data/results/"
+        save_dir="./data/results/",
     )

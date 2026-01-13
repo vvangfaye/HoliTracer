@@ -1,7 +1,7 @@
 class EarlyStopping(object):
     def __init__(self, criterion: float = 0.0, patience: int = 7):
         """
-        连续 patience 轮 criterion 指标不增加
+        Stop training if the criterion metric does not improve for patience consecutive rounds.
         """
         self.EarlyStopping = False
         self.patience = patience
