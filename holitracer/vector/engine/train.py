@@ -19,7 +19,7 @@ from .base import BaseEngine
 from .utils import infer_visual_one_whole_image
 from ..datasets import WHUBuildingVector, GLHWaterVector, VHRRoadVector
 from ..utils.loss import NormalLossWithMask, AngleLossWithMask
-from ..utils.metrics import coco_eval, polis_eval
+from ..utils.metrics import coco_eval, polis_eval, compute_IoU_cIoU_bIoU
 
 
 class TrainEngine(BaseEngine):
