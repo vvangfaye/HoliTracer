@@ -111,6 +111,7 @@ class TrainEngine(BaseEngine):
             self._load_checkpoint()
 
         if args.distributed:
+            self.model = self.model.to(args.local_rank)
             self.model = DDP(
                 self.model, device_ids=[args.local_rank], output_device=args.local_rank
             )
